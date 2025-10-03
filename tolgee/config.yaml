@@ -12,8 +12,8 @@ ports:
   8080/tcp: 8080
 options:
   database_url: "jdbc:postgresql://core-postgres:5432/tolgee"
-  database_user: "tolgee"
-  database_password: "tolgee"
+  database_user: "postgres"
+  database_password: "homeassistant"
 schema:
   database_url: str
   database_user: str
