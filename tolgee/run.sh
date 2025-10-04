@@ -105,6 +105,7 @@ unset PGPASSWORD
 bashio::log.info "Database setup complete!"
 
 # Set environment variables for Tolgee
+export TOLGEE_POSTGRES_AUTOSTART_ENABLED=false
 export SPRING_DATASOURCE_URL="jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${TOLGEE_DB_NAME}"
 export SPRING_DATASOURCE_USERNAME="${TOLGEE_DB_USER}"
 export SPRING_DATASOURCE_PASSWORD="${TOLGEE_DB_PASSWORD}"
