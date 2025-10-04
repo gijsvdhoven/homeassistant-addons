@@ -1,5 +1,5 @@
 name: "Tolgee"
-version: "1.0.14"
+version: "1.0.15"
 slug: "tolgee"
 description: "Tolgee localization platform for Home Assistant"
 url: "https://tolgee.io/"
@@ -23,6 +23,10 @@ options:
   database_user: "tolgee"
   database_password: "tolgee"
   postgres_autostart: false
+
+
+
+
 schema:
   postgres_root_url: str
   postgres_root_user: str
