@@ -4,7 +4,7 @@ FROM $BUILD_FROM
 # Install PostgreSQL client for database setup
 RUN apk add --no-cache \
     postgresql-client \
-    openjdk17-jre \
+    openjdk21-jre \
     openssl \
     bash \ 
     curl
