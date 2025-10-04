@@ -1,5 +1,5 @@
 name: "Tolgee"
-version: "1.0.0"
+version: "1.0.2"
 slug: "tolgee"
 description: "Tolgee localization platform for Home Assistant"
 url: "https://tolgee.io/"
@@ -12,12 +12,20 @@ arch:
 startup: services
 init: false
 ports:
-  8080/tcp: 8080
+  8080/tcp: 9000
 options:
-  database_url: "jdbc:postgresql://core-postgres:5432/tolgee"
-  database_user: "postgres"
-  database_password: "homeassistant"
+  postgres_root_url: "jdbc:postgresql://core-postgres:5432/postgres"
+  postgres_root_user: "postgres"
+  postgres_root_password: "postgres"
+  database_name: "tolgee"
+  database_user: "tolgee"
+  database_password: "tolgee"
+  postgres_autostart: false
 schema:
-  database_url: str
+  postgres_root_url: str
+  postgres_root_user: str
+  postgres_root_password: str
+  database_name: str
   database_user: str
   database_password: str
+  postgres_autostart: bool
