@@ -1,52 +1,34 @@
 #!/usr/bin/env bash
 set -e
 
-# --- Configuration ---
-POSTGRES_HOST=${POSTGRES_HOST:-core-postgres}  # Hostname of the Postgres add-on
-POSTGRES_PORT=${POSTGRES_PORT:-5432}
-POSTGRES_USER=${POSTGRES_USER:-postgres}       # Root user
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-DB_NAME=${DB_NAME:-tolgee}
-DB_ROLE=${DB_ROLE:-tolgee}
-DB_PASS=${DB_PASS:-tolgee}
+# Read HA add-on options from options.json
+POSTGRES_ROOT_URL=$(jq -r '.postgres_root_url' /data/options.json)
+POSTGRES_ROOT_USER=$(jq -r '.postgres_root_user' /data/options.json)
+POSTGRES_ROOT_PASSWORD=$(jq -r '.postgres_root_password' /data/options.json)
+DB_NAME=$(jq -r '.database_name' /data/options.json)
+DB_ROLE=$(jq -r '.database_user' /data/options.json)
+DB_PASS=$(jq -r '.database_password' /data/options.json)
+POSTGRES_AUTOSTART=$(jq -r '.postgres_autostart' /data/options.json)
 
-export PGPASSWORD="$POSTGRES_PASSWORD"
+echo "Tolgee add-on starting..."
 
-# --- Wait for Postgres to be ready ---
-echo "Waiting for Postgres at $POSTGRES_HOST:$POSTGRES_PORT..."
-until psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c '\q' 2>/dev/null; do
-  echo "Postgres is unavailable - sleeping 2s"
-  sleep 2
-done
+# Wait for PostgreSQL if autostart is enabled
+if [ "$POSTGRES_AUTOSTART" = "true" ]; then
+  echo "Autostarting PostgreSQL..."
+  # Here you can trigger starting the postgres add-on container if needed
+fi
 
-# --- Ensure role exists ---
-echo "Ensuring role '$DB_ROLE' exists..."
-psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres <<SQL
-DO
-\$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_ROLE') THEN
-      CREATE ROLE $DB_ROLE LOGIN PASSWORD '$DB_PASS';
-   END IF;
-END
-\$\$;
-SQL
+# Extract host and port from JDBC URL
+POSTGRES_HOST=$(echo $POSTGRES_ROOT_URL | sed -E 's|jdbc:postgresql://([^:/]+):([0-9]+)/.*|\1|')
+POSTGRES_PORT=$(echo $POSTGRES_ROOT_URL | sed -E 's|jdbc:postgresql://([^:/]+):([0-9]+)/.*|\2|')
 
-# --- Ensure database exists ---
-echo "Ensuring database '$DB_NAME' exists..."
-psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres <<SQL
-DO
-\$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME') THEN
-      EXECUTE 'CREATE DATABASE $DB_NAME OWNER $DB_ROLE';
-   END IF;
-END
-\$\$;
-SQL
+echo "Ensuring PostgreSQL role '$DB_ROLE' exists..."
+PGPASSWORD=$POSTGRES_ROOT_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_ROOT_USER -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_ROLE') THEN CREATE ROLE $DB_ROLE LOGIN PASSWORD '$DB_PASS'; END IF; END \$\$;"
 
-echo "Database and role are ready."
+echo "Ensuring PostgreSQL database '$DB_NAME' exists..."
+PGPASSWORD=$POSTGRES_ROOT_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_ROOT_USER -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME') THEN CREATE DATABASE $DB_NAME OWNER $DB_ROLE; END IF; END \$\$;"
 
-# --- Start Tolgee ---
-echo "Starting Tolgee..."
-java -jar /tolgee.jar
+echo "Tolgee database and role setup complete."
+
+# Start Tolgee
+exec java -jar /tolgee.jar
