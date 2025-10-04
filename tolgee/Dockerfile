@@ -6,12 +6,14 @@ RUN apk add --no-cache \
     postgresql-client \
     openjdk17-jre \
     openssl \
-    bash
+    bash \ 
+    curl
 
 # Download Tolgee
-ARG TOLGEE_VERSION=3.65.0
-RUN wget -O /app/tolgee.jar \
+ARG TOLGEE_VERSION=3.133.0
+RUN curl -O /app/tolgee.jar \
     "https://github.com/tolgee/tolgee-platform/releases/download/v${TOLGEE_VERSION}/tolgee-${TOLGEE_VERSION}.jar"
+
 
 # Copy run script
 COPY run.sh /
