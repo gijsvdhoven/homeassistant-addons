@@ -11,7 +11,8 @@ RUN apk add --no-cache \
 
 # Download Tolgee
 ARG TOLGEE_VERSION=3.133.0
-RUN curl -O /app/tolgee.jar \
+RUN mkdir -p /app && \
+    curl -L -o /app/tolgee.jar \
     "https://github.com/tolgee/tolgee-platform/releases/download/v${TOLGEE_VERSION}/tolgee-${TOLGEE_VERSION}.jar"
 
 
