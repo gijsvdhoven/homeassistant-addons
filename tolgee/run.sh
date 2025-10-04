@@ -55,6 +55,14 @@ else
 fi
 
 echo "Tolgee database and role setup complete."
+# Set database connection details
+export TOLGEE_DATABASE_URL="${DATABASE_URL}"
+export TOLGEE_DATABASE_USER="${DATABASE_USER}"
+export TOLGEE_DATABASE_PASSWORD="${DATABASE_PASSWORD}"
+
+# Disable embedded Postgres
+export TOLGEE_POSTGRES_AUTOSTART="${POSTGRES_AUTOSTART}"
+
 
 # Start Tolgee
 exec java -jar /tolgee.jar
