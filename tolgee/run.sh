@@ -93,23 +93,26 @@ ensure_database() {
 
 # Configure Tolgee environment
 configure_tolgee() {
-    # Database configuration
+    # Disable embedded Postgres (must be set first)
+    export TOLGEE_POSTGRES_AUTOSTART="false"
+    
+    # Spring datasource configuration (standard Spring Boot properties)
+    export SPRING_DATASOURCE_URL="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$DB_NAME"
+    export SPRING_DATASOURCE_USERNAME="$DB_ROLE"
+    export SPRING_DATASOURCE_PASSWORD="$DB_PASS"
+    
+    # Tolgee-specific configuration (if needed)
     export TOLGEE_DATABASE_URL="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$DB_NAME"
     export TOLGEE_DATABASE_USER="$DB_ROLE"
     export TOLGEE_DATABASE_PASSWORD="$DB_PASS"
-    export TOLGEE_POSTGRES_AUTOSTART="false"
     
-    # Optional: Add any other Tolgee configuration from options.json
-    # Uncomment and add more as needed:
-    # export TOLGEE_AUTHENTICATION_ENABLED=$(jq -r '.authentication_enabled // "true"' "$CONFIG_FILE")
-    # export TOLGEE_FRONT_END_URL=$(jq -r '.frontend_url // "http://localhost:8080"' "$CONFIG_FILE")
-    # export TOLGEE_JWT_SECRET=$(jq -r '.jwt_secret // ""' "$CONFIG_FILE")
-    
-    # Debug: Print exported variables (remove in production if desired)
+    # Debug output
     echo "Environment variables configured:"
+    echo "  TOLGEE_POSTGRES_AUTOSTART: $TOLGEE_POSTGRES_AUTOSTART"
+    echo "  SPRING_DATASOURCE_URL: $SPRING_DATASOURCE_URL"
+    echo "  SPRING_DATASOURCE_USERNAME: $SPRING_DATASOURCE_USERNAME"
     echo "  TOLGEE_DATABASE_URL: $TOLGEE_DATABASE_URL"
     echo "  TOLGEE_DATABASE_USER: $TOLGEE_DATABASE_USER"
-    echo "  TOLGEE_POSTGRES_AUTOSTART: $TOLGEE_POSTGRES_AUTOSTART"
 }
 
 # Main execution
