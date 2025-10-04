@@ -1,131 +1,108 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/with-contenv bashio
 
-# Configuration file path
-readonly CONFIG_FILE="/data/options.json"
+# Get configuration
+POSTGRES_HOST=$(bashio::config 'postgres_host')
+POSTGRES_PORT=$(bashio::config 'postgres_port')
+POSTGRES_ROOT_USER=$(bashio::config 'postgres_root_user')
+POSTGRES_ROOT_PASSWORD=$(bashio::config 'postgres_root_password')
+TOLGEE_DB_NAME=$(bashio::config 'tolgee_db_name')
+TOLGEE_DB_USER=$(bashio::config 'tolgee_db_user')
+TOLGEE_DB_PASSWORD=$(bashio::config 'tolgee_db_password')
+INITIAL_USERNAME=$(bashio::config 'initial_username')
 
-# Read HA add-on options
-read_config() {
-    POSTGRES_ROOT_URL=$(jq -r '.postgres_root_url' "$CONFIG_FILE")
-    POSTGRES_ROOT_USER=$(jq -r '.postgres_root_user' "$CONFIG_FILE")
-    POSTGRES_ROOT_PASSWORD=$(jq -r '.postgres_root_password' "$CONFIG_FILE")
-    DB_NAME=$(jq -r '.database_name' "$CONFIG_FILE")
-    DB_ROLE=$(jq -r '.database_user' "$CONFIG_FILE")
-    DB_PASS=$(jq -r '.database_password' "$CONFIG_FILE")
-}
+bashio::log.info "Starting Tolgee add-on..."
 
-# Extract host and port from JDBC URL
-parse_postgres_url() {
-    POSTGRES_HOST=$(echo "$POSTGRES_ROOT_URL" | sed -E 's|jdbc:postgresql://([^:/]+):([0-9]+)/.*|\1|')
-    POSTGRES_PORT=$(echo "$POSTGRES_ROOT_URL" | sed -E 's|jdbc:postgresql://([^:/]+):([0-9]+)/.*|\2|')
-}
+# Validate required fields
+if bashio::var.is_empty "${POSTGRES_ROOT_PASSWORD}"; then
+    bashio::log.fatal "PostgreSQL root password is required!"
+    exit 1
+fi
 
-# Wait until PostgreSQL is available
-wait_for_postgres() {
-    echo "Waiting for PostgreSQL at $POSTGRES_HOST:$POSTGRES_PORT..."
-    local attempts=0
-    local max_attempts=30
-    
-    until PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-          -U "$POSTGRES_ROOT_USER" -d postgres -c '\q' 2>/dev/null; do
-        attempts=$((attempts + 1))
-        if [ $attempts -ge $max_attempts ]; then
-            echo "ERROR: PostgreSQL not available after $max_attempts attempts"
-            exit 1
-        fi
-        echo "PostgreSQL not ready yet... retrying in 2s (attempt $attempts/$max_attempts)"
-        sleep 2
-    done
-    echo "PostgreSQL is ready."
-}
+if bashio::var.is_empty "${TOLGEE_DB_PASSWORD}"; then
+    bashio::log.fatal "Tolgee database password is required!"
+    exit 1
+fi
 
-# Retry wrapper for psql commands
-psql_retry() {
-    local sql="$1"
-    local attempts=0
-    local max_attempts=10
-    
-    until PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-          -U "$POSTGRES_ROOT_USER" -d postgres -c "$sql" 2>/dev/null; do
-        attempts=$((attempts + 1))
-        if [ $attempts -ge $max_attempts ]; then
-            echo "ERROR: Failed to execute SQL after $max_attempts attempts: $sql"
-            exit 1
-        fi
-        echo "Retrying SQL command in 2s... (attempt $attempts/$max_attempts)"
-        sleep 2
-    done
-}
+# Generate or load JWT secret
+JWT_SECRET_FILE="/data/jwt_secret"
+if [ ! -f "${JWT_SECRET_FILE}" ]; then
+    bashio::log.info "Generating new JWT secret..."
+    JWT_SECRET=$(openssl rand -base64 64 | tr -d '\n')
+    echo "${JWT_SECRET}" > "${JWT_SECRET_FILE}"
+    chmod 600 "${JWT_SECRET_FILE}"
+    bashio::log.info "JWT secret generated and saved"
+else
+    bashio::log.info "Loading existing JWT secret..."
+    JWT_SECRET=$(cat "${JWT_SECRET_FILE}")
+fi
 
-# Check if role exists
-role_exists() {
-    PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-        -U "$POSTGRES_ROOT_USER" -d postgres -tAc \
-        "SELECT 1 FROM pg_roles WHERE rolname='$DB_ROLE'" | grep -q 1
-}
+# Wait for PostgreSQL to be ready
+bashio::log.info "Waiting for PostgreSQL to be ready..."
+timeout=60
+elapsed=0
+while ! pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" > /dev/null 2>&1; do
+    if [ $elapsed -ge $timeout ]; then
+        bashio::log.fatal "PostgreSQL not ready after ${timeout} seconds"
+        exit 1
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+done
+
+bashio::log.info "PostgreSQL is ready!"
+
+# Create database and user
+bashio::log.info "Setting up database and user..."
+
+export PGPASSWORD="${POSTGRES_ROOT_PASSWORD}"
 
 # Check if database exists
-database_exists() {
-    PGPASSWORD="$POSTGRES_ROOT_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
-        -U "$POSTGRES_ROOT_USER" -d postgres -tAc \
-        "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1
+DB_EXISTS=$(psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -tAc "SELECT 1 FROM pg_database WHERE datname='${TOLGEE_DB_NAME}'" 2>/dev/null)
+
+if [ "$DB_EXISTS" != "1" ]; then
+    bashio::log.info "Creating database ${TOLGEE_DB_NAME}..."
+    psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -c "CREATE DATABASE ${TOLGEE_DB_NAME};" || {
+        bashio::log.error "Failed to create database"
+        exit 1
+    }
+else
+    bashio::log.info "Database ${TOLGEE_DB_NAME} already exists"
+fi
+
+# Check if user exists
+USER_EXISTS=$(psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -tAc "SELECT 1 FROM pg_roles WHERE rolname='${TOLGEE_DB_USER}'" 2>/dev/null)
+
+if [ "$USER_EXISTS" != "1" ]; then
+    bashio::log.info "Creating user ${TOLGEE_DB_USER}..."
+    psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -c "CREATE USER ${TOLGEE_DB_USER} WITH PASSWORD '${TOLGEE_DB_PASSWORD}';" || {
+        bashio::log.error "Failed to create user"
+        exit 1
+    }
+else
+    bashio::log.info "User ${TOLGEE_DB_USER} already exists"
+fi
+
+# Grant privileges
+bashio::log.info "Granting privileges..."
+psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -c "GRANT ALL PRIVILEGES ON DATABASE ${TOLGEE_DB_NAME} TO ${TOLGEE_DB_USER};" || {
+    bashio::log.error "Failed to grant privileges"
+    exit 1
 }
 
-# Ensure role exists
-ensure_role() {
-    if ! role_exists; then
-        echo "Creating role '$DB_ROLE'..."
-        psql_retry "CREATE ROLE \"$DB_ROLE\" LOGIN PASSWORD '$DB_PASS';"
-    else
-        echo "Role '$DB_ROLE' already exists."
-    fi
-}
+# Additional grants for PostgreSQL 15+
+psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" -d "${TOLGEE_DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${TOLGEE_DB_USER};" 2>/dev/null || true
 
-# Ensure database exists
-ensure_database() {
-    if ! database_exists; then
-        echo "Creating database '$DB_NAME'..."
-        psql_retry "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_ROLE\";"
-    else
-        echo "Database '$DB_NAME' already exists."
-    fi
-}
+unset PGPASSWORD
 
-# Configure Tolgee environment
-configure_tolgee() {
-    # Spring datasource configuration
-    export SPRING_DATASOURCE_URL="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$DB_NAME"
-    export SPRING_DATASOURCE_USERNAME="$DB_ROLE"
-    export SPRING_DATASOURCE_PASSWORD="$DB_PASS"
-    
-    # Explicitly disable Postgres autostart through Spring Boot autoconfiguration
-    export SPRING_AUTOCONFIGURE_EXCLUDE="io.tolgee.configuration.PostgresAutoStartConfiguration"
-    
-    # Debug output
-    echo "Environment variables configured:"
-    echo "  SPRING_DATASOURCE_URL: $SPRING_DATASOURCE_URL"
-    echo "  SPRING_DATASOURCE_USERNAME: $SPRING_DATASOURCE_USERNAME"
-    echo "  SPRING_AUTOCONFIGURE_EXCLUDE: $SPRING_AUTOCONFIGURE_EXCLUDE"
-}
+bashio::log.info "Database setup complete!"
 
-# Main execution
-main() {
-    echo "Tolgee add-on starting..."
-    
-    read_config
-    parse_postgres_url
-    wait_for_postgres
-    ensure_role
-    ensure_database
-    
-    echo "Tolgee database and role setup complete."
-    
-    configure_tolgee
-    
-    echo "Starting Tolgee with external PostgreSQL..."
-    exec java \
-        -Dspring.autoconfigure.exclude=io.tolgee.configuration.PostgresAutoStartConfiguration \
-        -jar /tolgee.jar
-}
+# Set environment variables for Tolgee
+export SPRING_DATASOURCE_URL="jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${TOLGEE_DB_NAME}"
+export SPRING_DATASOURCE_USERNAME="${TOLGEE_DB_USER}"
+export SPRING_DATASOURCE_PASSWORD="${TOLGEE_DB_PASSWORD}"
+export TOLGEE_AUTHENTICATION_JWT_SECRET="${JWT_SECRET}"
+export TOLGEE_AUTHENTICATION_INITIAL_USERNAME="${INITIAL_USERNAME}"
 
-main "$@"
+# Start Tolgee
+bashio::log.info "Starting Tolgee..."
+exec java -jar /app/tolgee.jar
