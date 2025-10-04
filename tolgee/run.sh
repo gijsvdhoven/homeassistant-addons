@@ -93,26 +93,19 @@ ensure_database() {
 
 # Configure Tolgee environment
 configure_tolgee() {
-    # Disable embedded Postgres (must be set first)
-    export TOLGEE_POSTGRES_AUTOSTART="false"
-    
-    # Spring datasource configuration (standard Spring Boot properties)
+    # Spring datasource configuration
     export SPRING_DATASOURCE_URL="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$DB_NAME"
     export SPRING_DATASOURCE_USERNAME="$DB_ROLE"
     export SPRING_DATASOURCE_PASSWORD="$DB_PASS"
     
-    # Tolgee-specific configuration (if needed)
-    export TOLGEE_DATABASE_URL="jdbc:postgresql://$POSTGRES_HOST:$POSTGRES_PORT/$DB_NAME"
-    export TOLGEE_DATABASE_USER="$DB_ROLE"
-    export TOLGEE_DATABASE_PASSWORD="$DB_PASS"
+    # Explicitly disable Postgres autostart through Spring Boot autoconfiguration
+    export SPRING_AUTOCONFIGURE_EXCLUDE="io.tolgee.configuration.PostgresAutoStartConfiguration"
     
     # Debug output
     echo "Environment variables configured:"
-    echo "  TOLGEE_POSTGRES_AUTOSTART: $TOLGEE_POSTGRES_AUTOSTART"
     echo "  SPRING_DATASOURCE_URL: $SPRING_DATASOURCE_URL"
     echo "  SPRING_DATASOURCE_USERNAME: $SPRING_DATASOURCE_USERNAME"
-    echo "  TOLGEE_DATABASE_URL: $TOLGEE_DATABASE_URL"
-    echo "  TOLGEE_DATABASE_USER: $TOLGEE_DATABASE_USER"
+    echo "  SPRING_AUTOCONFIGURE_EXCLUDE: $SPRING_AUTOCONFIGURE_EXCLUDE"
 }
 
 # Main execution
@@ -129,8 +122,10 @@ main() {
     
     configure_tolgee
     
-    echo "Starting Tolgee..."
-    exec java -jar /tolgee.jar
+    echo "Starting Tolgee with external PostgreSQL..."
+    exec java \
+        -Dspring.autoconfigure.exclude=io.tolgee.configuration.PostgresAutoStartConfiguration \
+        -jar /tolgee.jar
 }
 
 main "$@"
