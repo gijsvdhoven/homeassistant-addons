@@ -1,17 +1,20 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
+ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Install Java
-RUN apk add --no-cache openjdk17 curl postgresql-client
+# Install PostgreSQL client for database setup
+RUN apk add --no-cache \
+    postgresql-client \
+    openjdk17-jre \
+    openssl \
+    bash
 
-# Download Tolgee release JAR
-ENV TOLGEE_VERSION=3.61.0
-RUN curl -L -o /tolgee.jar \
-    https://github.com/tolgee/tolgee-platform/releases/download/v${TOLGEE_VERSION}/tolgee-${TOLGEE_VERSION}.jar
-# Install Postgres client + Java 17
+# Download Tolgee
+ARG TOLGEE_VERSION=3.65.0
+RUN wget -O /app/tolgee.jar \
+    "https://github.com/tolgee/tolgee-platform/releases/download/v${TOLGEE_VERSION}/tolgee-${TOLGEE_VERSION}.jar"
 
-
-EXPOSE 8080
-COPY run.sh /run.sh
+# Copy run script
+COPY run.sh /
 RUN chmod a+x /run.sh
-CMD ["/run.sh"]
+
+CMD [ "/run.sh" ]
