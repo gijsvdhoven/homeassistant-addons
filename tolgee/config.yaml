@@ -31,4 +31,4 @@ schema:
   tolgee_db_user: str
   tolgee_db_password: password
   initial_username: str
-image: "ghcr.io/tolgee/tolgee/{arch}"
+# image: "ghcr.io/tolgee/tolgee/{arch}"
