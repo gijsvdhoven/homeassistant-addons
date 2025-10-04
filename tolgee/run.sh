@@ -1,36 +1,24 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/env bash
 set -e
 
-# --- Read options from add-on config ---
-ROOT_URL=$(bashio::config 'postgres_root_url')
-ROOT_USER=$(bashio::config 'postgres_root_user')
-ROOT_PASS=$(bashio::config 'postgres_root_password')
-
-DB_NAME=$(bashio::config 'database_name')
-DB_USER=$(bashio::config 'database_user')
-DB_PASS=$(bashio::config 'database_password')
-POSTGRES_AUTOSTART=$(bashio::config 'postgres_autostart')
-
-# --- Extract host:port ---
-DB_HOSTPORT=$(echo "$ROOT_URL" | sed -E 's|jdbc:postgresql://([^/]+)/.*|\1|')
-DB_HOST=${DB_HOSTPORT%%:*}
-DB_PORT=${DB_HOSTPORT##*:}
-
-echo "Ensuring role '$DB_USER' exists..."
-
-# Ensure role exists
-PGPASSWORD=$ROOT_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$ROOT_USER" -d postgres <<-EOSQL
-DO \$\$
+echo "Ensuring role 'tolgee' exists..."
+psql -U "$POSTGRES_USER" -d postgres <<'SQL'
+DO $$
 BEGIN
-   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER') THEN
-      CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'tolgee') THEN
+      CREATE ROLE tolgee LOGIN PASSWORD 'tolgee';
    END IF;
 END
-\$\$;
-EOSQL
+$$;
+SQL
 
-# Check/create database separately
-echo "Ensuring database '$DB_NAME' exists..."
-DB_EXISTS=$(PGPASSWORD=$ROOT_PASS psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME';" -h "$DB_HOST" -p "$DB_PORT" -U "$ROOT_USER" -d postgres)
-
-if [ "$DB_EXISTS_]()
+echo "Ensuring database 'tolgee' exists..."
+psql -U "$POSTGRES_USER" -d postgres <<'SQL'
+DO $$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'tolgee') THEN
+      PERFORM dblink_exec('dbname=postgres', 'CREATE DATABASE tolgee OWNER tolgee');
+   END IF;
+END
+$$;
+SQL
