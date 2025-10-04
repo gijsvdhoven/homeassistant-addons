@@ -1,37 +1,34 @@
-name: "Tolgee"
-version: "1.0.20"
-slug: "tolgee"
-description: "Tolgee localization platform for Home Assistant"
-url: "https://tolgee.io/"
+name: Tolgee
+version: "1.0.40"
+slug: tolgee
+description: Tolgee localization platform for Home Assistant
 arch:
   - aarch64
   - amd64
   - armhf
   - armv7
   - i386
-startup: services
 init: false
 ports:
-  8080/tcp: 9999
-map:
-  - data:rw
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: Tolgee web interface
 options:
-  postgres_root_url: "jdbc:postgresql://addon_db21ed7f_postgres_latest:5432/postgres"
+  postgres_host: "jdbc:postgresql://addon_db21ed7f_postgres_latest:5432/postgres"
+  postgres_port: 5432
   postgres_root_user: "postgres"
   postgres_root_password: "homeassistant"
-  database_name: "tolgee"
-  database_user: "tolgee"
-  database_password: "tolgee"
-  postgres_autostart: false
-
-
-
-
+  tolgee_db_name: "tolgee"
+  tolgee_db_user: "tolgee"
+  tolgee_db_password: "tolgee"
+  initial_username: "admin"
 schema:
-  postgres_root_url: str
+  postgres_host: str
+  postgres_port: port
   postgres_root_user: str
-  postgres_root_password: str
-  database_name: str
-  database_user: str
-  database_password: str
-  postgres_autostart: bool
+  postgres_root_password: password
+  tolgee_db_name: str
+  tolgee_db_user: str
+  tolgee_db_password: password
+  initial_username: str
+# image: "ghcr.io/tolgee/tolgee/{arch}"
