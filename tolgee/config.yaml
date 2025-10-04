@@ -4,8 +4,11 @@ slug: "tolgee"
 description: "Tolgee localization platform for Home Assistant"
 url: "https://tolgee.io/"
 arch:
+  - aarch64
   - amd64
-  - arm64
+  - armhf
+  - armv7
+  - i386
 startup: services
 init: false
 ports:
