@@ -38,15 +38,23 @@ fi
 
 # Wait for PostgreSQL to be ready
 bashio::log.info "Waiting for PostgreSQL to be ready..."
+bashio::log.info "Connecting to ${POSTGRES_HOST}:${POSTGRES_PORT} as user ${POSTGRES_ROOT_USER}"
+
 timeout=60
 elapsed=0
 while ! pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_ROOT_USER}" > /dev/null 2>&1; do
     if [ $elapsed -ge $timeout ]; then
         bashio::log.fatal "PostgreSQL not ready after ${timeout} seconds"
+        bashio::log.fatal "Could not connect to ${POSTGRES_HOST}:${POSTGRES_PORT}"
+        bashio::log.fatal "Please verify:"
+        bashio::log.fatal "  - PostgreSQL add-on is running"
+        bashio::log.fatal "  - Hostname is correct (try: a0d7b954-postgresql, core-postgresql, or the container name)"
+        bashio::log.fatal "  - Port is correct (default: 5432)"
         exit 1
     fi
-    sleep 2
-    elapsed=$((elapsed + 2))
+    bashio::log.info "Still waiting... (${elapsed}s elapsed)"
+    sleep 5
+    elapsed=$((elapsed + 5))
 done
 
 bashio::log.info "PostgreSQL is ready!"
