@@ -1,5 +1,5 @@
 name: Tolgee
-version: "1.0.42"
+version: "1.0.45"
 slug: tolgee
 description: Tolgee localization platform for Home Assistant
 arch:
@@ -10,17 +10,17 @@ arch:
   - i386
 init: false
 ports:
-  8080/tcp: 8080
+  8080/tcp: 9999
 ports_description:
   8080/tcp: Tolgee web interface
 options:
-  postgres_host: "jdbc:postgresql://addon_db21ed7f_postgres_latest:5432/postgres"
+  postgres_host: "a0d7b954-postgresql"
   postgres_port: 5432
   postgres_root_user: "postgres"
-  postgres_root_password: "homeassistant"
+  postgres_root_password: ""
   tolgee_db_name: "tolgee"
   tolgee_db_user: "tolgee"
-  tolgee_db_password: "tolgee"
+  tolgee_db_password: ""
   initial_username: "admin"
 schema:
   postgres_host: str
@@ -31,4 +31,4 @@ schema:
   tolgee_db_user: str
   tolgee_db_password: password
   initial_username: str
-# image: "ghcr.io/tolgee/tolgee/{arch}"
+image: "ghcr.io/tolgee/tolgee/{arch}"
