@@ -1,6 +1,0 @@
-#!/usr/bin/execlineb -S0
-# Gracefully stop the Vito container when the add-on stops
-if docker ps -q --filter "name=addon_vito" | grep -q .; then
-    docker stop addon_vito
-fi
-exit 0
