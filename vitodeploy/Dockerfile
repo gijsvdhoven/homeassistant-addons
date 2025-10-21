@@ -1,4 +1,4 @@
-# Use Debian-based Home Assistant base image
+# Use Debian-based HA base
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:latest
 FROM ${BUILD_FROM}
 
@@ -10,8 +10,7 @@ RUN apt-get update && \
 # Enable Apache rewrite module
 RUN a2enmod rewrite
 
-# Prepare web root and storage
-RUN mkdir -p /var/www/html
+# Prepare web root
 RUN mkdir -p /var/www/html/storage && chmod -R 777 /var/www/html/storage
 
 # Download Vito
@@ -21,8 +20,5 @@ RUN git clone https://github.com/vitodeploy/vito.git /var/www/html || true
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Expose HTTP port
 EXPOSE 80
-
-# Run entrypoint
 CMD ["/entrypoint.sh"]
