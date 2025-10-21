@@ -1,5 +1,5 @@
 name: "Vito"
-version: "1.0.3"
+version: "1.0.4"
 slug: "vito"
 description: "Run the Vito deployment platform inside Home Assistant with Ingress support"
 url: "https://github.com/vitodeploy/vito"
