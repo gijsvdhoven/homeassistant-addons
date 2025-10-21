@@ -1,28 +1,26 @@
 name: "Vito"
-version: "1.0.4"
+version: "1.0.6"
 slug: "vito"
-description: "Run the Vito deployment platform inside Home Assistant with Ingress support"
-url: "https://github.com/vitodeploy/vito"
+description: "Run Vito (vitodeploy/vito) inside Home Assistant"
 arch:
   - amd64
-  - aarch64
 startup: services
 boot: auto
-ingress: true
-ingress_port: 8000
-panel_icon: mdi:application
-map:
-  - config:rw
-  - data:rw
+host_network: true
 options:
-  app_key: ""
+  app_key: "your-32-character-app-key"
   name: "vito"
   email: "vito@example.com"
   password: "password"
-  app_url: "http://homeassistant.local"
+  app_url: "http://localhost:8000"
 schema:
-  app_key: str?
+  app_key: str
   name: str
   email: str
   password: str
   app_url: str
+map:
+  - config:rw
+  - share:rw
+  - ssl:ro
+  - media:rw
