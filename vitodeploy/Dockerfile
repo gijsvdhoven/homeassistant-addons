@@ -1,4 +1,4 @@
-# Use Debian-based Home Assistant base (supports apt-get)
+# Use Debian-based Home Assistant base image
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:latest
 FROM ${BUILD_FROM}
 
@@ -17,7 +17,7 @@ RUN mkdir -p /var/www/html/storage && chmod -R 777 /var/www/html/storage
 # Download Vito
 RUN git clone https://github.com/vitodeploy/vito.git /var/www/html || true
 
-# Copy add-on configuration into .env dynamically at container start
+# Copy entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
