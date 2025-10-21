@@ -1,12 +1,17 @@
 name: "Vito"
-version: "1.0.6"
+version: "1.0.7"
 slug: "vito"
-description: "Run Vito (vitodeploy/vito) inside Home Assistant"
+description: "Run Vito web interface inside Home Assistant"
 arch:
   - amd64
 startup: services
 boot: auto
 host_network: true
+map:
+  - config:rw
+  - share:rw
+  - ssl:ro
+  - media:rw
 options:
   app_key: "your-32-character-app-key"
   name: "vito"
@@ -19,8 +24,3 @@ schema:
   email: str
   password: str
   app_url: str
-map:
-  - config:rw
-  - share:rw
-  - ssl:ro
-  - media:rw
