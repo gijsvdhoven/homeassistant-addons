@@ -1,0 +1,27 @@
+name: "Vito"
+version: "1.0.0"
+slug: "vito"
+description: "Run the Vito deployment platform inside Home Assistant"
+url: "https://github.com/vitodeploy/vito"
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+ports:
+  8000/tcp: 8812
+webui: "http://[HOST]:[PORT:8000]"
+map:
+  - config:rw
+options:
+  app_key: "your-32-character-app-key"
+  name: "vito"
+  email: "vito@example.com"
+  password: "password"
+  app_url: "http://homeassistant.local:8000"
+schema:
+  app_key: str
+  name: str
+  email: str
+  password: str
+  app_url: str
