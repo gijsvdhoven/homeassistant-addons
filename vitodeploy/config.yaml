@@ -12,14 +12,9 @@ init: false
 ingress: false
 panel_icon: mdi:server
 ports:
-  8000/tcp: 8089
+  80/tcp: 8089
 ports_description:
-  8000/tcp: "Vito web interface (Laravel Sail)"
-privileged:
-  - SYS_ADMIN
-  - NET_ADMIN
-docker_api: true
-full_access: true
+  80/tcp: "Vito web interface"
 map:
   - config:rw
   - share:rw
