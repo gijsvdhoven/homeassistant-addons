@@ -1,33 +1,25 @@
-name: "Vito"
-version: "4.0.0"
-slug: "vito"
-description: "Vito deployment tool for Home Assistant"
+name: Vito
+version: "5.0.0"
+slug: vito
+description: Vito app running inside Home Assistant
 arch:
   - amd64
-  - aarch64
-  - armv7
-startup: application
+  - arm64
+startup: services
 boot: auto
-init: false
-ingress: false
-panel_icon: mdi:server
 ports:
-  80/tcp: 8089
-ports_description:
-  80/tcp: "Vito web interface"
+  8000/tcp: 8000
 map:
   - config:rw
-  - share:rw
-  - ssl:ro
-  - media:rw
-  - addon_config:rw
 options:
+  app_key: "your-32-character-app-key"
   name: "vito"
-  email: "admin@example.com"
+  email: "vito@example.com"
   password: "password"
-  app_url: "http://homeassistant.local:8089"
+  app_url: "http://localhost:8000"
 schema:
-  name: "str?"
-  email: "str?"
-  password: "str?"
-  app_url: "str?"
+  app_key: str
+  name: str
+  email: str
+  password: str
+  app_url: str
