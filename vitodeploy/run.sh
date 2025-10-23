@@ -35,21 +35,27 @@ fi
 
 # Load configuration based on API availability
 if [ "$BASHIO_AVAILABLE" = true ]; then
-    # Use bashio to get configuration
-    NAME=$(bashio::config 'name' || echo "vito")
-    EMAIL=$(bashio::config 'email' || echo "admin@example.com")
-    PASSWORD=$(bashio::config 'password' || echo "password")
-    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8123")
+    # Use bashio to get configuration with better error handling
+    NAME=$(bashio::config 'name' 2>/dev/null || echo "vito")
+    EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
+    PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+    APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8123")
+    
+    # Fallback to defaults if values are empty
+    NAME=${NAME:-vito}
+    EMAIL=${EMAIL:-admin@example.com}
+    PASSWORD=${PASSWORD:-password}
+    APP_URL=${APP_URL:-http://homeassistant.local:8123}
     
     # Check for ingress
     INGRESS_ENABLED=false
-    if bashio::addon.ingress_entry >/dev/null 2>&1; then
-        INGRESS_ENTRY=$(bashio::addon.ingress_entry)
+    INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>/dev/null)
+    if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
         INGRESS_ENABLED=true
         echo "Ingress enabled with entry: ${INGRESS_ENTRY}"
         
         # Use ingress URL
-        ADDON_SLUG=$(bashio::addon.slug || echo "vito")
+        ADDON_SLUG=$(bashio::addon.slug 2>/dev/null || echo "vito")
         APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
         echo "Setting APP_URL for ingress: ${APP_URL}"
     fi
@@ -111,7 +117,7 @@ LOG_CHANNEL=stack
 LOG_LEVEL=info
 
 DB_CONNECTION=sqlite
-DB_DATABASE=${PERSISTENT_DIR}/storage/database.sqlite
+DB_DATABASE=database.sqlite
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -138,7 +144,7 @@ else
     echo "Using existing .env file from persistent storage"
     # Update dynamic values in existing .env
     sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" "${ENV_FILE}"
-    sed -i "s|^DB_DATABASE=.*|DB_DATABASE=${PERSISTENT_DIR}/storage/database.sqlite|" "${ENV_FILE}"
+    sed -i "s|^DB_DATABASE=.*|DB_DATABASE=database.sqlite|" "${ENV_FILE}"
     sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
@@ -253,7 +259,9 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
     if [ -f "$DB_PATH" ]; then
         echo "Database file exists at: $DB_PATH"
         ls -la "$DB_PATH"
-        echo "Laravel should see it at: /var/www/html/storage/database.sqlite"
+        echo "Laravel should see it as: database.sqlite (relative to storage directory)"
+        echo "Actual Laravel storage path: /var/www/html/storage/"
+        ls -la /var/www/html/storage/database.sqlite 2>/dev/null || echo "Symlink check failed"
     else
         echo "ERROR: Database file not found at: $DB_PATH"
     fi
