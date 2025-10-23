@@ -55,7 +55,8 @@ if [ "$BASHIO_WORKING" = true ]; then
     INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>/dev/null)
     if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
         ADDON_SLUG=$(bashio::addon.slug || echo "vito")
-        APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
+        # Laravel needs a full URL for proper redirects
+        APP_URL="http://homeassistant.local:8123/api/hassio_ingress/${ADDON_SLUG}"
         echo "Ingress enabled, setting APP_URL to: ${APP_URL}"
     fi
     
@@ -66,7 +67,8 @@ else
     NAME="vito"
     EMAIL="admin@example.com"
     PASSWORD="password"
-    APP_URL="/api/hassio_ingress/vito"
+    # Laravel needs a full URL for proper redirects
+    APP_URL="http://homeassistant.local:8123/api/hassio_ingress/vito"
     
     echo "Using safe default configuration with ingress URL"
 fi
@@ -112,6 +114,8 @@ APP_KEY=${APP_KEY}
 APP_DEBUG=false
 APP_URL=${APP_URL}
 APP_TIMEZONE=UTC
+FORCE_HTTPS=false
+TRUSTED_PROXIES=*
 
 LOG_CHANNEL=stack
 LOG_LEVEL=info
@@ -153,6 +157,8 @@ else
     if [[ "$APP_URL" == */api/hassio_ingress/* ]]; then
         echo "Updating .env for ingress compatibility..."
         grep -q "^ASSET_URL=" "${ENV_FILE}" && sed -i "s|^ASSET_URL=.*|ASSET_URL=${APP_URL}|" "${ENV_FILE}" || echo "ASSET_URL=${APP_URL}" >> "${ENV_FILE}"
+        grep -q "^FORCE_HTTPS=" "${ENV_FILE}" && sed -i "s|^FORCE_HTTPS=.*|FORCE_HTTPS=false|" "${ENV_FILE}" || echo "FORCE_HTTPS=false" >> "${ENV_FILE}"
+        grep -q "^TRUSTED_PROXIES=" "${ENV_FILE}" && sed -i "s|^TRUSTED_PROXIES=.*|TRUSTED_PROXIES=*|" "${ENV_FILE}" || echo "TRUSTED_PROXIES=*" >> "${ENV_FILE}"
     fi
     
     # Ensure required variables exist (add if missing)
