@@ -30,33 +30,28 @@ if [ "$BASHIO_AVAILABLE" = true ]; then
     NAME=$(bashio::config 'name')
     EMAIL=$(bashio::config 'email')
     PASSWORD=$(bashio::config 'password')
+    APP_URL=$(bashio::config 'app_url')
     
     # Debug: Show what we got from bashio
     echo "Debug - Raw config values:"
     echo "  name: '$NAME'"
     echo "  email: '$EMAIL'"
     echo "  password: '$PASSWORD'"
+    echo "  app_url: '$APP_URL'"
     
     # Apply defaults if empty
     NAME=${NAME:-"Vito Admin"}
     EMAIL=${EMAIL:-"admin@example.com"}
     PASSWORD=${PASSWORD:-"password"}
+    APP_URL=${APP_URL:-"http://homeassistant.local:8089"}
     
-    # Handle ingress vs direct access
-    if bashio::addon.ingress_entry 2>/dev/null; then
-        ADDON_SLUG=$(bashio::addon.slug 2>/dev/null || echo "vito")
-        APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
-        echo "Running in Home Assistant ingress mode"
-    else
-        APP_URL="http://homeassistant.local:80"
-        echo "Running in direct access mode"
-    fi
+    echo "Running in direct access mode"
 else
     # Fallback configuration when bashio is not available
     NAME=${NAME:-"Vito Admin"}
     EMAIL=${EMAIL:-"admin@example.com"}
     PASSWORD=${PASSWORD:-"password"}
-    APP_URL=${APP_URL:-"http://localhost:80"}
+    APP_URL=${APP_URL:-"http://localhost:8089"}
     echo "Using environment variables or defaults"
 fi
 

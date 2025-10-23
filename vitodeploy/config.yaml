@@ -1,5 +1,5 @@
 name: "Vito"
-version: "3.1.3"
+version: "3.2.0"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
@@ -9,14 +9,12 @@ arch:
 startup: application
 boot: auto
 init: false
-ingress: true
-ingress_port: 80
-ingress_entry: /
+ingress: false
 panel_icon: mdi:server
 ports:
   80/tcp: 8089
 ports_description:
-  80/tcp: "Vito web interface (direct access)"
+  80/tcp: "Vito web interface"
 map:
   - config:rw
   - share:rw
@@ -27,7 +25,9 @@ options:
   name: "vito"
   email: "admin@example.com"
   password: "password"
+  app_url: "http://homeassistant.local:8089"
 schema:
   name: "str?"
   email: "str?"
   password: "str?"
+  app_url: "str?"
