@@ -1,7 +1,7 @@
 name: "Vito"
-version: "3.2.0"
+version: "4.0.0"
 slug: "vito"
-description: "Vito web interface inside Home Assistant"
+description: "Vito deployment tool for Home Assistant"
 arch:
   - amd64
   - aarch64

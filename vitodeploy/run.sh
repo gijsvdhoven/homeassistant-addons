@@ -18,13 +18,13 @@ else
     echo "Bashio library not found - using fallback configuration"
 fi
 
-# Setup persistent directories
+# Setup persistent directories (matching docker-compose volumes)
 PERSISTENT_DIR="/data"
 echo "Setting up persistent directories..."
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/plugins"
 
-# Load configuration with proper fallbacks and debugging
+# Load configuration
 echo "Loading configuration..."
 if [ "$BASHIO_AVAILABLE" = true ]; then
     NAME=$(bashio::config 'name')
@@ -32,33 +32,18 @@ if [ "$BASHIO_AVAILABLE" = true ]; then
     PASSWORD=$(bashio::config 'password')
     APP_URL=$(bashio::config 'app_url')
     
-    # Debug: Show what we got from bashio
-    echo "Debug - Raw config values:"
-    echo "  name: '$NAME'"
-    echo "  email: '$EMAIL'"
-    echo "  password: '$PASSWORD'"
-    echo "  app_url: '$APP_URL'"
-    
     # Apply defaults if empty
-    NAME=${NAME:-"Vito Admin"}
+    NAME=${NAME:-"vito"}
     EMAIL=${EMAIL:-"admin@example.com"}
     PASSWORD=${PASSWORD:-"password"}
     APP_URL=${APP_URL:-"http://homeassistant.local:8089"}
-    
-    echo "Running in direct access mode"
 else
-    # Fallback configuration when bashio is not available
-    NAME=${NAME:-"Vito Admin"}
+    # Fallback configuration
+    NAME=${NAME:-"vito"}
     EMAIL=${EMAIL:-"admin@example.com"}
     PASSWORD=${PASSWORD:-"password"}
     APP_URL=${APP_URL:-"http://localhost:8089"}
-    echo "Using environment variables or defaults"
 fi
-
-echo "Configuration:"
-echo "  Admin Name: $NAME"
-echo "  Admin Email: $EMAIL"
-echo "  App URL: $APP_URL"
 
 # Generate app key if not exists
 APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
@@ -72,12 +57,18 @@ else
     echo "Using existing app key from persistent storage"
 fi
 
-# Set up persistent storage volumes
-echo "Setting up persistent storage..."
+echo "Configuration:"
+echo "  Admin Name: $NAME"
+echo "  Admin Email: $EMAIL"
+echo "  App URL: $APP_URL"
+
+# Set up volume mounts (matching docker-compose pattern)
+echo "Setting up persistent storage volumes..."
+
+# Create symlinks for persistent storage (like docker-compose volumes)
 if [ ! -L /var/www/html/storage ]; then
-    # Move existing storage to persistent location if it exists
-    if [ -d /var/www/html/storage ] && [ ! -L /var/www/html/storage ]; then
-        echo "Moving existing storage to persistent location..."
+    if [ -d /var/www/html/storage ]; then
+        echo "Backing up existing storage..."
         cp -r /var/www/html/storage/* "${PERSISTENT_DIR}/storage/" 2>/dev/null || true
         rm -rf /var/www/html/storage
     fi
@@ -85,92 +76,32 @@ if [ ! -L /var/www/html/storage ]; then
 fi
 
 if [ ! -L /var/www/html/app/Vito/Plugins ]; then
-    # Move existing plugins if they exist
-    if [ -d /var/www/html/app/Vito/Plugins ] && [ ! -L /var/www/html/app/Vito/Plugins ]; then
-        echo "Moving existing plugins to persistent location..."
-        mkdir -p "${PERSISTENT_DIR}/plugins"
+    mkdir -p /var/www/html/app/Vito
+    if [ -d /var/www/html/app/Vito/Plugins ]; then
+        echo "Backing up existing plugins..."
         cp -r /var/www/html/app/Vito/Plugins/* "${PERSISTENT_DIR}/plugins/" 2>/dev/null || true
         rm -rf /var/www/html/app/Vito/Plugins
     fi
-    mkdir -p /var/www/html/app/Vito
     ln -sf "${PERSISTENT_DIR}/plugins" /var/www/html/app/Vito/Plugins
 fi
 
-# Set proper permissions
+# Set permissions
 chown -R www-data:www-data "${PERSISTENT_DIR}" 2>/dev/null || chown -R apache:apache "${PERSISTENT_DIR}"
-chown -R www-data:www-data /var/www/html 2>/dev/null || chown -R apache:apache /var/www/html
 
-# Export environment variables for Vito
+# Export environment variables exactly like docker-compose
 export APP_KEY="$APP_KEY"
 export NAME="$NAME"
 export EMAIL="$EMAIL"
-export PASSWORD="$PASSWORD" 
+export PASSWORD="$PASSWORD"
 export APP_URL="$APP_URL"
 
 echo ""
-echo "🎉 Starting Vito with official Docker image..."
+echo "🎉 Starting Vito..."
 echo "📧 Admin Email: $EMAIL"
 echo "🔑 Admin Password: $PASSWORD"
 echo "🌐 Access URL: $APP_URL"
 echo ""
 
-# Debug: Check what's currently running
-echo "=== DEBUG: Current processes ==="
-ps aux
-echo ""
-
-# Debug: Check what ports are listening
-echo "=== DEBUG: Listening ports ==="
-netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null || echo "No netstat/ss available"
-echo ""
-
-# Debug: Check web server status
-echo "=== DEBUG: Web server check ==="
-if command -v nginx >/dev/null 2>&1; then
-    echo "Nginx available: $(nginx -v 2>&1)"
-    systemctl status nginx 2>/dev/null || service nginx status 2>/dev/null || echo "Nginx service status unknown"
-fi
-
-if command -v apache2ctl >/dev/null 2>&1; then
-    echo "Apache available: $(apache2ctl -v 2>&1 | head -1)"
-    systemctl status apache2 2>/dev/null || service apache2 status 2>/dev/null || echo "Apache service status unknown"
-fi
-
-if command -v php-fpm >/dev/null 2>&1; then
-    echo "PHP-FPM available: $(php-fpm --version 2>&1 | head -1)"
-fi
-
-echo ""
-
-# Debug: Check if something is already listening on port 80
-echo "=== DEBUG: Port 80 status ==="
-curl -I http://localhost:80 2>/dev/null || echo "Nothing responding on port 80 yet"
-echo ""
-
-# Instead of starting our own web server, let's see if we can use the original CMD
-echo "=== DEBUG: Original image info ==="
-echo "Checking what the original image was supposed to run..."
-
-# Let's try to start the original processes in the background first
-echo "Starting background processes..."
-
-# Start any services that might be needed
-service nginx start 2>/dev/null &
-service apache2 start 2>/dev/null &
-service php8.3-fpm start 2>/dev/null || service php-fpm start 2>/dev/null &
-
-# Wait a moment for services to start
-sleep 5
-
-# Check again what's running
-echo "=== DEBUG: Processes after service start ==="
-ps aux
-echo ""
-
-echo "=== DEBUG: Port 80 status after service start ==="
-curl -I http://localhost:80 2>/dev/null || echo "Still nothing on port 80"
-echo ""
-
-# If nothing is working, let's keep the container alive and see what happens
-echo "Keeping container alive for debugging..."
-tail -f /dev/null
+# Execute the original Vito container's default command
+# The official image should handle starting the web server
+exec docker-entrypoint.sh
