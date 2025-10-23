@@ -37,6 +37,8 @@ RUN apk add --no-cache \
     php83-gd \
     php83-intl \
     php83-opcache \
+    php83-ftp \
+    php83-pcntl \
     git \
     unzip \
     curl \
@@ -54,7 +56,7 @@ RUN git clone https://github.com/vitodeploy/vito.git . && \
     rm -rf .git
 
 # Install Vito dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-req=php
 
 # Create necessary directories and set permissions
 RUN mkdir -p storage/{app,framework,logs} && \

@@ -1,0 +1,151 @@
+# Vito Home Assistant Add-on Development Guide
+
+## Architecture Overview
+
+This is a **Home Assistant add-on** that packages the Vito deployment tool (Laravel application) to run inside Home Assistant with full Ingress support. The add-on architecture consists of:
+
+- **Alpine Linux base** with Apache + PHP 8.3 stack
+- **Laravel/Vito application** cloned from GitHub during build
+- **Home Assistant integration** via bashio library and ingress configuration
+- **SQLite database** for simplicity (MySQL optional via MariaDB add-on)
+
+## Key Files & Their Purpose
+
+- `config.yaml`: Home Assistant add-on configuration (ingress, ports, schema)
+- `Dockerfile`: Multi-stage build for Alpine + Apache + PHP + Vito dependencies
+- `run.sh`: Dynamic configuration script that handles ingress/direct access modes
+- `README.md`: User installation and troubleshooting guide
+
+## Critical Development Patterns
+
+### 1. Home Assistant Add-on Standards
+
+```yaml
+# config.yaml - Essential ingress configuration
+ingress: true
+ingress_port: 80
+ingress_entry: /
+init: false # Prevents s6-overlay PID 1 errors
+```
+
+### 2. Dynamic URL Resolution
+
+The add-on supports both ingress and direct access. In `run.sh`:
+
+```bash
+# Ingress mode detection
+if bashio::addon.ingress_entry 2>/dev/null; then
+    APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
+else
+    APP_URL="http://homeassistant.local:8123"
+fi
+```
+
+### 3. Laravel Environment Setup
+
+Environment variables are dynamically generated in `run.sh` based on Home Assistant configuration:
+
+```bash
+# .env generation from HA options
+APP_KEY=$(bashio::config 'app_key')
+ADMIN_EMAIL=$(bashio::config 'email')
+```
+
+### 4. Apache Configuration Pattern
+
+Document root points to Laravel's public directory with proper rewrite rules:
+
+```apache
+DocumentRoot "/var/www/html/public"
+# Laravel .htaccess handles routing to index.php
+```
+
+## Development Workflows
+
+### Building & Testing
+
+```bash
+# Build locally (from add-on directory)
+docker build -t local/vito-addon .
+
+# Run with Home Assistant integration
+docker run --rm -p 8080:80 \
+  -e APP_KEY="base64:$(openssl rand -base64 32)" \
+  local/vito-addon
+```
+
+### Debugging Add-on Issues
+
+```bash
+# Access running add-on container
+docker exec -it addon_local_vito /bin/bash
+
+# Check Laravel logs
+tail -f /var/www/html/storage/logs/laravel.log
+
+# Verify Apache configuration
+httpd -t -f /etc/apache2/httpd.conf
+```
+
+### Configuration Updates
+
+When modifying `config.yaml`:
+
+1. Update `schema` section to match new `options`
+2. Increment `version` number
+3. Update `run.sh` to handle new configuration variables
+4. Test both ingress and direct access modes
+
+## Home Assistant Integration Points
+
+### Bashio Library Usage
+
+The add-on uses bashio for Home Assistant integration:
+
+```bash
+# Safe configuration reading with fallbacks
+APP_KEY=$(bashio::config 'app_key' 2>/dev/null || echo "default")
+
+# Ingress detection
+if bashio::addon.ingress_entry 2>/dev/null; then
+    # Configure for ingress mode
+fi
+```
+
+### Permission Management
+
+Critical for Laravel application:
+
+```bash
+# Required permissions for storage and cache
+chmod -R 777 /var/www/html/storage
+chmod -R 777 /var/www/html/bootstrap/cache
+chmod 666 /var/www/html/database/database.sqlite
+```
+
+## External Dependencies
+
+- **Vito Repository**: `https://github.com/vitodeploy/vito.git` (cloned during build)
+- **Composer**: Manages PHP dependencies during build process
+- **Home Assistant Base Image**: `ghcr.io/home-assistant/amd64-base:latest`
+
+## Common Issues & Solutions
+
+### s6-overlay Conflicts
+
+Use `init: false` in config.yaml and avoid s6 services. Run processes directly with `exec` in run.sh.
+
+### Ingress Path Issues
+
+Laravel needs proper `APP_URL` for asset generation. The ingress path `/api/hassio_ingress/${ADDON_SLUG}` must match the actual ingress entry.
+
+### Database Permissions
+
+SQLite file must be writable by Apache user (`apache:apache`) with 666 permissions on the database file and 777 on the directory.
+
+## Architecture Decisions
+
+- **SQLite over MySQL**: Simplifies deployment, no external database required
+- **Git clone during build**: Ensures latest Vito code, but increases build time
+- **Apache over Nginx**: Better Laravel integration, simpler configuration
+- **Single-stage Dockerfile**: Prioritizes simplicity over image size optimization
