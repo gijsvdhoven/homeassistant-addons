@@ -119,20 +119,63 @@ echo "🔑 Admin Password: $PASSWORD"
 echo "🌐 Access URL: $APP_URL"
 echo ""
 
-# Check what's available in the official image
-echo "Checking available startup options..."
-ls -la /entrypoint.sh /usr/local/bin/ 2>/dev/null || echo "Standard paths not found"
+# Debug: Check what's currently running
+echo "=== DEBUG: Current processes ==="
+ps aux
+echo ""
 
-# Try to find and use the original startup method
-if [ -f "/entrypoint.sh" ]; then
-    echo "Running original Vito entrypoint..."
-    exec /entrypoint.sh "$@"
-elif [ -f "/usr/local/bin/start-container" ]; then
-    echo "Running Vito start script..."
-    exec /usr/local/bin/start-container "$@"
-else
-    echo "Starting Apache directly as fallback..."
-    # Since we're using the official image, start Apache/PHP manually
-    # This is the most likely scenario for a web application
-    exec apache2-foreground
+# Debug: Check what ports are listening
+echo "=== DEBUG: Listening ports ==="
+netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null || echo "No netstat/ss available"
+echo ""
+
+# Debug: Check web server status
+echo "=== DEBUG: Web server check ==="
+if command -v nginx >/dev/null 2>&1; then
+    echo "Nginx available: $(nginx -v 2>&1)"
+    systemctl status nginx 2>/dev/null || service nginx status 2>/dev/null || echo "Nginx service status unknown"
 fi
+
+if command -v apache2ctl >/dev/null 2>&1; then
+    echo "Apache available: $(apache2ctl -v 2>&1 | head -1)"
+    systemctl status apache2 2>/dev/null || service apache2 status 2>/dev/null || echo "Apache service status unknown"
+fi
+
+if command -v php-fpm >/dev/null 2>&1; then
+    echo "PHP-FPM available: $(php-fpm --version 2>&1 | head -1)"
+fi
+
+echo ""
+
+# Debug: Check if something is already listening on port 80
+echo "=== DEBUG: Port 80 status ==="
+curl -I http://localhost:80 2>/dev/null || echo "Nothing responding on port 80 yet"
+echo ""
+
+# Instead of starting our own web server, let's see if we can use the original CMD
+echo "=== DEBUG: Original image info ==="
+echo "Checking what the original image was supposed to run..."
+
+# Let's try to start the original processes in the background first
+echo "Starting background processes..."
+
+# Start any services that might be needed
+service nginx start 2>/dev/null &
+service apache2 start 2>/dev/null &
+service php8.3-fpm start 2>/dev/null || service php-fpm start 2>/dev/null &
+
+# Wait a moment for services to start
+sleep 5
+
+# Check again what's running
+echo "=== DEBUG: Processes after service start ==="
+ps aux
+echo ""
+
+echo "=== DEBUG: Port 80 status after service start ==="
+curl -I http://localhost:80 2>/dev/null || echo "Still nothing on port 80"
+echo ""
+
+# If nothing is working, let's keep the container alive and see what happens
+echo "Keeping container alive for debugging..."
+tail -f /dev/null

@@ -1,8 +1,8 @@
 # Use the official Vito Docker image
 FROM vitodeploy/vito:latest
 
-# Install bashio for Home Assistant integration
-RUN apt-get update && apt-get install -y curl \
+# Install bashio and jq for Home Assistant integration
+RUN apt-get update && apt-get install -y curl jq \
     && curl -J -L -o /tmp/bashio.tar.gz "https://github.com/hassio-addons/bashio/archive/v0.16.2.tar.gz" \
     && tar zxvf /tmp/bashio.tar.gz --strip 1 -C /tmp \
     && mv /tmp/lib /usr/lib/bashio \
