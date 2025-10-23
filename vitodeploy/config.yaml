@@ -1,5 +1,5 @@
 name: "Vito"
-version: "1.7.4"
+version: "1.7.5"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:

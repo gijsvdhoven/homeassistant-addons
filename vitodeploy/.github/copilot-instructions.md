@@ -4,7 +4,7 @@
 
 This is a **Home Assistant add-on** that packages the Vito deployment tool (Laravel application) to run inside Home Assistant with full Ingress support. The add-on architecture consists of:
 
-- **Alpine Linux base** with Apache + PHP 8.3 stack
+- **Alpine Linux base** with Apache + PHP 8.3 stack (with platform overrides for Vito compatibility)
 - **Laravel/Vito application** cloned from GitHub during build
 - **Home Assistant integration** via bashio library and ingress configuration
 - **SQLite database** for simplicity (MySQL optional via MariaDB add-on)
@@ -89,12 +89,17 @@ httpd -t -f /etc/apache2/httpd.conf
 
 ### Configuration Updates
 
-When modifying `config.yaml`:
+**CRITICAL**: Always increment the `version` number in `config.yaml` for ANY change to the add-on (Dockerfile, run.sh, config updates, etc.). Home Assistant uses this version to trigger rebuilds and updates.
 
-1. Update `schema` section to match new `options`
-2. Increment `version` number
+When modifying `config.yaml`:
+1. **Increment `version` number** (e.g., "1.7.3" → "1.7.4")
+2. Update `schema` section to match new `options`
 3. Update `run.sh` to handle new configuration variables
 4. Test both ingress and direct access modes
+
+When modifying other files (Dockerfile, run.sh, etc.):
+1. **Always increment `version` number in `config.yaml`**
+2. Test the build locally before pushing
 
 ## Home Assistant Integration Points
 
@@ -142,6 +147,30 @@ Laravel needs proper `APP_URL` for asset generation. The ingress path `/api/hass
 ### Database Permissions
 
 SQLite file must be writable by Apache user (`apache:apache`) with 666 permissions on the database file and 777 on the directory.
+
+### PHP Version Compatibility
+
+Vito may require newer PHP versions than Alpine provides. Handle this with platform requirements override:
+
+```dockerfile
+# Install required PHP extensions for Vito
+php83-ftp \
+php83-pcntl \
+php83-posix \
+
+# Override PHP version requirement during Composer install
+RUN composer install --ignore-platform-req=php --no-dev --optimize-autoloader
+```
+
+### Missing PHP Extensions
+
+Vito requires `ext-ftp`, `ext-pcntl`, and `ext-posix`. Add to Dockerfile APK install:
+
+```dockerfile
+php83-ftp \
+php83-pcntl \
+php83-posix \
+```
 
 ## Architecture Decisions
 

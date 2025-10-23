@@ -39,6 +39,7 @@ RUN apk add --no-cache \
     php83-opcache \
     php83-ftp \
     php83-pcntl \
+    php83-posix \
     git \
     unzip \
     curl \
