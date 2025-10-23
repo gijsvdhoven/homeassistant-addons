@@ -2,6 +2,10 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
 FROM ${BUILD_FROM}
 
+# Set environment variables
+ENV HOME=/root
+ENV COMPOSER_HOME=/root/.composer
+
 # Install Apache + PHP + dependencies
 RUN apk add --no-cache \
     apache2 \
@@ -38,26 +42,30 @@ RUN apk add --no-cache \
     curl \
     bash
 
-# Install Composer manually
+# Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Create PHP symlinks for compatibility
+# Create PHP symlinks
 RUN ln -sf /usr/bin/php83 /usr/bin/php
 
-# Prepare web root
-RUN mkdir -p /var/www/html && chmod -R 777 /var/www/html
+# Clone and setup Vito
+WORKDIR /var/www/html
+RUN git clone https://github.com/vitodeploy/vito.git . && \
+    rm -rf .git
 
-# Download Vito
-RUN git clone https://github.com/vitodeploy/vito.git /tmp/vito && \
-    cp -r /tmp/vito/* /var/www/html/ && \
-    rm -rf /tmp/vito
+# Install Vito dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-# Set up Laravel directories
-RUN mkdir -p /var/www/html/storage/{app,framework,logs} && \
-    mkdir -p /var/www/html/storage/framework/{cache,sessions,views} && \
-    mkdir -p /var/www/html/bootstrap/cache && \
-    chmod -R 777 /var/www/html/storage && \
-    chmod -R 777 /var/www/html/bootstrap/cache || true
+# Create necessary directories and set permissions
+RUN mkdir -p storage/{app,framework,logs} && \
+    mkdir -p storage/framework/{cache,sessions,views,testing} && \
+    mkdir -p bootstrap/cache && \
+    mkdir -p database && \
+    chmod -R 777 storage bootstrap/cache database
+
+# Create default .env file
+RUN cp .env.example .env 2>/dev/null || \
+    echo -e "APP_NAME=Vito\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://localhost\n\nDB_CONNECTION=sqlite\nDB_DATABASE=/var/www/html/database/database.sqlite" > .env
 
 # Copy run script
 COPY run.sh /run.sh
