@@ -24,12 +24,23 @@ echo "Setting up persistent directories..."
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/plugins"
 
-# Load configuration with proper fallbacks
+# Load configuration with proper fallbacks and debugging
 echo "Loading configuration..."
 if [ "$BASHIO_AVAILABLE" = true ]; then
-    NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
-    EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
-    PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+    NAME=$(bashio::config 'name')
+    EMAIL=$(bashio::config 'email')
+    PASSWORD=$(bashio::config 'password')
+    
+    # Debug: Show what we got from bashio
+    echo "Debug - Raw config values:"
+    echo "  name: '$NAME'"
+    echo "  email: '$EMAIL'"
+    echo "  password: '$PASSWORD'"
+    
+    # Apply defaults if empty
+    NAME=${NAME:-"Vito Admin"}
+    EMAIL=${EMAIL:-"admin@example.com"}
+    PASSWORD=${PASSWORD:-"password"}
     
     # Handle ingress vs direct access
     if bashio::addon.ingress_entry 2>/dev/null; then
@@ -108,16 +119,20 @@ echo "🔑 Admin Password: $PASSWORD"
 echo "🌐 Access URL: $APP_URL"
 echo ""
 
-# Use the original Vito container's startup approach
-# The official image should have its own entrypoint
+# Check what's available in the official image
+echo "Checking available startup options..."
+ls -la /entrypoint.sh /usr/local/bin/ 2>/dev/null || echo "Standard paths not found"
+
+# Try to find and use the original startup method
 if [ -f "/entrypoint.sh" ]; then
     echo "Running original Vito entrypoint..."
-    exec /entrypoint.sh
+    exec /entrypoint.sh "$@"
 elif [ -f "/usr/local/bin/start-container" ]; then
     echo "Running Vito start script..."
-    exec /usr/local/bin/start-container
+    exec /usr/local/bin/start-container "$@"
 else
-    echo "Starting with default command..."
-    # Fallback to whatever the original image's CMD was
-    exec "$@"
+    echo "Starting Apache directly as fallback..."
+    # Since we're using the official image, start Apache/PHP manually
+    # This is the most likely scenario for a web application
+    exec apache2-foreground
 fi

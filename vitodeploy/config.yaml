@@ -1,5 +1,5 @@
 name: "Vito"
-version: "3.1.1"
+version: "3.1.2"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
@@ -28,6 +28,6 @@ options:
   email: "admin@example.com"
   password: "password"
 schema:
-  name: str
-  email: str
-  password: str
+  name: "str?"
+  email: "str?"
+  password: "str?"
