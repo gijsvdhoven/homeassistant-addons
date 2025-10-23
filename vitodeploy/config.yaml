@@ -1,9 +1,11 @@
 name: "Vito"
-version: "1.7.1"
+version: "1.7.2"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
   - amd64
+  - aarch64
+  - armv7
 startup: services
 boot: auto
 init: false
@@ -21,11 +23,11 @@ map:
   - ssl:ro
   - media:rw
 options:
-  app_key: "your-32-character-app-key"
+  app_key: "base64:YOUR-32-CHARACTER-KEY-HERE"
   name: "vito"
-  email: "vito@example.com"
+  email: "admin@example.com"
   password: "password"
-  app_url: "http://localhost:8000"
+  app_url: "http://homeassistant.local:8123"
 schema:
   app_key: str
   name: str

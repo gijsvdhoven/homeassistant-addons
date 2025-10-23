@@ -6,7 +6,6 @@ FROM ${BUILD_FROM}
 RUN apk add --no-cache \
     apache2 \
     apache2-utils \
-    apache2-mod-rewrite \
     php83 \
     php83-apache2 \
     php83-mbstring \
@@ -31,12 +30,16 @@ RUN apk add --no-cache \
     php83-simplexml \
     php83-xmlwriter \
     php83-phar \
+    php83-gd \
+    php83-intl \
+    php83-opcache \
     git \
     unzip \
     curl \
-    bash \
-    bashio \
-    composer
+    bash
+
+# Install Composer manually
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Create PHP symlinks for compatibility
 RUN ln -sf /usr/bin/php83 /usr/bin/php
@@ -54,7 +57,7 @@ RUN mkdir -p /var/www/html/storage/{app,framework,logs} && \
     mkdir -p /var/www/html/storage/framework/{cache,sessions,views} && \
     mkdir -p /var/www/html/bootstrap/cache && \
     chmod -R 777 /var/www/html/storage && \
-    chmod -R 777 /var/www/html/bootstrap/cache
+    chmod -R 777 /var/www/html/bootstrap/cache || true
 
 # Copy run script
 COPY run.sh /run.sh
