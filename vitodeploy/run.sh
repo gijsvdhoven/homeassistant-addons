@@ -268,6 +268,24 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
     # Migrate database
     php artisan migrate --force 2>/dev/null || true
     
+    # Check if we need to create an admin user
+    echo "Checking for admin user..."
+    USER_COUNT=$(php artisan tinker --execute="echo App\Models\User::count();" 2>/dev/null || echo "0")
+    if [ "$USER_COUNT" = "0" ]; then
+        echo "Creating admin user..."
+        php artisan tinker --execute="
+            \$user = new App\Models\User();
+            \$user->name = '$NAME';
+            \$user->email = '$EMAIL';
+            \$user->password = Hash::make('$PASSWORD');
+            \$user->email_verified_at = now();
+            \$user->save();
+            echo 'Admin user created: ' . \$user->email;
+        " 2>/dev/null || echo "Could not create admin user"
+    else
+        echo "Admin user already exists (user count: $USER_COUNT)"
+    fi
+    
     # Cache configuration
     php artisan config:clear
     php artisan cache:clear
@@ -285,6 +303,28 @@ chmod -R 755 "${PERSISTENT_DIR}/config" 2>/dev/null || true
 chmod 666 "${PERSISTENT_DIR}/storage/database.sqlite" 2>/dev/null || true
 
 echo "Starting Vito web server on port 80..."
+
+# Debug Apache and Laravel setup
+echo "=== Apache and Laravel Debug ==="
+echo "Document root contents:"
+ls -la /var/www/html/public/ | head -10
+echo ""
+echo "Checking key Laravel files:"
+test -f /var/www/html/public/index.php && echo "✓ index.php exists" || echo "✗ index.php missing"
+test -f /var/www/html/artisan && echo "✓ artisan exists" || echo "✗ artisan missing"  
+test -f /var/www/html/vendor/autoload.php && echo "✓ vendor/autoload.php exists" || echo "✗ vendor/autoload.php missing"
+test -f /var/www/html/.env && echo "✓ .env exists" || echo "✗ .env missing"
+echo ""
+echo "Laravel routes check:"
+cd /var/www/html
+php artisan route:list 2>/dev/null | head -5 || echo "Could not list routes"
+echo ""
+echo "Apache config test:"
+httpd -t -f /etc/apache2/httpd.conf
+echo ""
+echo "Checking if Laravel can serve a test route:"
+curl -s http://localhost/api/ping 2>/dev/null || echo "No response from Laravel"
+echo "================================"
 
 # Run Apache in foreground
 exec httpd -D FOREGROUND -f /etc/apache2/httpd.conf
