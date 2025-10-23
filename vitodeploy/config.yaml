@@ -1,12 +1,20 @@
 name: "Vito"
-version: "1.5.0"
+version: "1.7.0"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
   - amd64
 startup: services
 boot: auto
-host_network: true
+init: false
+ingress: true
+ingress_port: 80
+ingress_entry: /
+panel_icon: mdi:server
+ports:
+  80/tcp: null
+ports_description:
+  80/tcp: "Web interface (not needed with ingress)"
 map:
   - config:rw
   - share:rw
