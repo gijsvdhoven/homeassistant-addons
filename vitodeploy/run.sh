@@ -21,54 +21,53 @@ echo "Persistent directory contents:"
 ls -la "${PERSISTENT_DIR}" || echo "Could not list ${PERSISTENT_DIR}"
 df -h "${PERSISTENT_DIR}" || echo "Could not check disk space for ${PERSISTENT_DIR}"
 
-# Test bashio API access first
-BASHIO_AVAILABLE=false
+# Try to load configuration from Home Assistant, but don't let failures stop us
+echo "Attempting to load configuration from Home Assistant..."
+
+# Test a simple bashio call first
+BASHIO_WORKING=false
 if command -v bashio &> /dev/null; then
-    # Test if bashio can access supervisor API without errors
-    if bashio::supervisor.ping 2>/dev/null >/dev/null; then
-        BASHIO_AVAILABLE=true
-        echo "Bashio API available, loading configuration..."
+    # Try a simple call that should work if API is accessible
+    if TEST_RESULT=$(timeout 5 bashio::supervisor.ping 2>/dev/null) && [ $? -eq 0 ]; then
+        # Try to get one config value to test if API really works
+        if TEST_NAME=$(timeout 5 bashio::config 'name' 2>/dev/null) && [ $? -eq 0 ]; then
+            BASHIO_WORKING=true
+            echo "Home Assistant API is working, loading configuration..."
+        else
+            echo "Home Assistant API calls are failing, using defaults..."
+        fi
     else
-        echo "Bashio API not accessible, using standalone mode with defaults..."
+        echo "Cannot connect to Home Assistant supervisor, using defaults..."
     fi
+else
+    echo "Bashio not available, using defaults..."
 fi
 
-# Load configuration based on API availability
-if [ "$BASHIO_AVAILABLE" = true ]; then
-    # Use bashio to get configuration with better error handling
-    NAME=$(bashio::config 'name' 2>/dev/null || echo "vito")
-    EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
-    PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
-    APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8123")
-    
-    # Fallback to defaults if values are empty
-    NAME=${NAME:-vito}
-    EMAIL=${EMAIL:-admin@example.com}
-    PASSWORD=${PASSWORD:-password}
-    APP_URL=${APP_URL:-http://homeassistant.local:8123}
+# Load configuration
+if [ "$BASHIO_WORKING" = true ]; then
+    # Use bashio to get configuration (we know it works)
+    NAME=$(bashio::config 'name' || echo "vito")
+    EMAIL=$(bashio::config 'email' || echo "admin@example.com")  
+    PASSWORD=$(bashio::config 'password' || echo "password")
+    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8123")
     
     # Check for ingress
-    INGRESS_ENABLED=false
     INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>/dev/null)
     if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
-        INGRESS_ENABLED=true
-        echo "Ingress enabled with entry: ${INGRESS_ENTRY}"
-        
-        # Use ingress URL
-        ADDON_SLUG=$(bashio::addon.slug 2>/dev/null || echo "vito")
+        ADDON_SLUG=$(bashio::addon.slug || echo "vito")
         APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
-        echo "Setting APP_URL for ingress: ${APP_URL}"
+        echo "Ingress enabled, setting APP_URL to: ${APP_URL}"
     fi
     
     echo "Configuration loaded from Home Assistant"
 else
-    # Fallback configuration (bashio not available or API not accessible)
-    NAME=${NAME:-vito}
-    EMAIL=${EMAIL:-admin@example.com}
-    PASSWORD=${PASSWORD:-password}
-    APP_URL=${APP_URL:-http://localhost}
+    # Use safe defaults when API is not working
+    NAME="vito"
+    EMAIL="admin@example.com"
+    PASSWORD="password"
+    APP_URL="http://localhost"
     
-    echo "Using default configuration (standalone mode)"
+    echo "Using safe default configuration"
 fi
 
 # Ensure APP_URL is never empty
