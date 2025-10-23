@@ -62,12 +62,13 @@ if [ "$BASHIO_WORKING" = true ]; then
     echo "Configuration loaded from Home Assistant"
 else
     # Use safe defaults when API is not working
+    # Since ingress is enabled in config.yaml, assume ingress URL even without API
     NAME="vito"
     EMAIL="admin@example.com"
     PASSWORD="password"
-    APP_URL="http://localhost"
+    APP_URL="/api/hassio_ingress/vito"
     
-    echo "Using safe default configuration"
+    echo "Using safe default configuration with ingress URL"
 fi
 
 # Ensure APP_URL is never empty
@@ -147,6 +148,12 @@ else
     sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
+    
+    # Force update APP_URL for ingress compatibility
+    if [[ "$APP_URL" == */api/hassio_ingress/* ]]; then
+        echo "Updating .env for ingress compatibility..."
+        grep -q "^ASSET_URL=" "${ENV_FILE}" && sed -i "s|^ASSET_URL=.*|ASSET_URL=${APP_URL}|" "${ENV_FILE}" || echo "ASSET_URL=${APP_URL}" >> "${ENV_FILE}"
+    fi
     
     # Ensure required variables exist (add if missing)
     grep -q "^APP_TIMEZONE=" "${ENV_FILE}" || echo "APP_TIMEZONE=UTC" >> "${ENV_FILE}"
