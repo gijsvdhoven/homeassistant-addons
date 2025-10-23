@@ -1,38 +1,89 @@
 #!/bin/bash
 
+# Source bashio library if available
+if [ -f /usr/lib/bashio/bashio.sh ]; then
+    source /usr/lib/bashio/bashio.sh
+fi
+
 # Check if running with ingress
 if command -v bashio &> /dev/null; then
     # Get ingress interface if available
-    if bashio::addon.ingress_entry; then
+    INGRESS_ENABLED=false
+    if bashio::addon.ingress_entry 2>/dev/null; then
         INGRESS_ENTRY=$(bashio::addon.ingress_entry)
-        echo "Ingress enabled with entry: ${INGRESS_ENTRY}"
+        INGRESS_ENABLED=true
+        bashio::log.info "Ingress enabled with entry: ${INGRESS_ENTRY}"
     fi
     
     # Generate .env from add-on options
+    APP_KEY=$(bashio::config 'app_key')
+    NAME=$(bashio::config 'name')
+    EMAIL=$(bashio::config 'email')
+    PASSWORD=$(bashio::config 'password')
     APP_URL=$(bashio::config 'app_url')
     
     # If ingress is enabled, use the ingress URL
-    if bashio::var.has_value "${INGRESS_ENTRY}"; then
+    if [ "$INGRESS_ENABLED" = true ]; then
         # For ingress, we need to set the proper base URL
-        APP_URL="/api/hassio_ingress/$(bashio::addon.slug)"
+        ADDON_SLUG=$(bashio::addon.slug)
+        APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
+        bashio::log.info "Setting APP_URL for ingress: ${APP_URL}"
     fi
     
     cat <<EOF >/var/www/html/.env
-APP_KEY=$(bashio::config 'app_key')
-NAME=$(bashio::config 'name')
-EMAIL=$(bashio::config 'email')
-PASSWORD=$(bashio::config 'password')
+APP_NAME=Vito
+APP_ENV=production
+APP_KEY=${APP_KEY}
+APP_DEBUG=false
 APP_URL=${APP_URL}
+
+LOG_CHANNEL=stack
+LOG_LEVEL=info
+
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DRIVER=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+NAME=${NAME}
+EMAIL=${EMAIL}
+PASSWORD=${PASSWORD}
 EOF
+    
+    bashio::log.info "Configuration loaded from Home Assistant"
 else
     # Fallback for local testing
     cat <<EOF >/var/www/html/.env
-APP_KEY=${APP_KEY:-your-32-character-app-key}
+APP_NAME=Vito
+APP_ENV=production
+APP_KEY=${APP_KEY:-base64:YOUR-32-CHARACTER-KEY-HERE}
+APP_DEBUG=false
+APP_URL=${APP_URL:-http://localhost}
+
+LOG_CHANNEL=stack
+LOG_LEVEL=info
+
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DRIVER=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
 NAME=${NAME:-vito}
-EMAIL=${EMAIL:-vito@example.com}
+EMAIL=${EMAIL:-admin@example.com}
 PASSWORD=${PASSWORD:-password}
-APP_URL=${APP_URL:-http://localhost:8000}
 EOF
+    
+    echo "Running in standalone mode (no bashio detected)"
 fi
 
 # Configure Apache for PHP and Ingress
@@ -60,7 +111,6 @@ DocumentRoot "/var/www/html/public"
 
 # PHP configuration
 LoadModule php_module /usr/lib/apache2/mod_php83.so
-LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so
 AddType application/x-httpd-php .php
 DirectoryIndex index.php index.html
 
@@ -71,9 +121,9 @@ DirectoryIndex index.php index.html
 </IfModule>
 EOF
 
-# Enable Apache modules
-echo "LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so" >> /etc/apache2/httpd.conf
-echo "LoadModule headers_module /usr/lib/apache2/mod_headers.so" >> /etc/apache2/httpd.conf
+# Enable Apache modules (mod_rewrite is built-in to Alpine's Apache)
+echo "LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so" >> /etc/apache2/httpd.conf 2>/dev/null || true
+echo "LoadModule headers_module /usr/lib/apache2/mod_headers.so" >> /etc/apache2/httpd.conf 2>/dev/null || true
 
 # Create a basic .htaccess for Laravel if it doesn't exist
 if [ ! -f /var/www/html/public/.htaccess ]; then
@@ -103,31 +153,51 @@ EOF
 fi
 
 # Check if Vito needs initial setup
-if [ ! -f /var/www/html/.env ]; then
+if [ ! -f /var/www/html/vendor/autoload.php ]; then
     echo "First run - setting up Vito..."
     cd /var/www/html
     
-    # Install composer if needed
-    if [ ! -f /var/www/html/composer.phar ]; then
-        php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-        php composer-setup.php
-        php -r "unlink('composer-setup.php');"
+    # Install dependencies
+    if command -v composer &> /dev/null; then
+        composer install --no-dev --optimize-autoloader --no-interaction || true
     fi
     
-    # Install dependencies
-    php composer.phar install --no-dev --optimize-autoloader || true
-    
     # Generate application key if not provided
-    php artisan key:generate || true
+    if [ -f /var/www/html/artisan ]; then
+        php artisan key:generate --force || true
+        php artisan config:cache || true
+        php artisan route:cache || true
+        php artisan view:cache || true
+    fi
+fi
+
+# Create database if it doesn't exist
+if [ ! -f /var/www/html/database/database.sqlite ]; then
+    mkdir -p /var/www/html/database
+    touch /var/www/html/database/database.sqlite
+    chmod 666 /var/www/html/database/database.sqlite
+    
+    # Run migrations if artisan is available
+    if [ -f /var/www/html/artisan ]; then
+        cd /var/www/html
+        php artisan migrate --force || true
+        php artisan db:seed --force || true
+    fi
 fi
 
 # Set permissions
 chown -R apache:apache /var/www/html
 chmod -R 755 /var/www/html
 chmod -R 777 /var/www/html/storage
-chmod -R 777 /var/www/html/bootstrap/cache || true
+chmod -R 777 /var/www/html/bootstrap/cache 2>/dev/null || true
+chmod 777 /var/www/html/database 2>/dev/null || true
+chmod 666 /var/www/html/database/database.sqlite 2>/dev/null || true
 
-echo "Starting Vito web server..."
+if command -v bashio &> /dev/null; then
+    bashio::log.info "Starting Vito web server..."
+else
+    echo "Starting Vito web server..."
+fi
 
 # Run Apache in foreground
 exec httpd -D FOREGROUND -f /etc/apache2/httpd.conf
