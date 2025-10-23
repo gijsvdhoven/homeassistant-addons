@@ -65,6 +65,17 @@ else
     echo "Using default configuration (standalone mode)"
 fi
 
+# Ensure APP_URL is never empty
+if [ -z "$APP_URL" ] || [ "$APP_URL" = "" ]; then
+    APP_URL="http://localhost"
+    echo "APP_URL was empty, setting to: $APP_URL"
+fi
+
+echo "Final configuration:"
+echo "  NAME: $NAME"
+echo "  EMAIL: $EMAIL"
+echo "  APP_URL: $APP_URL"
+
 # Generate or retrieve app key
 APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
 if [ ! -f "${APP_KEY_FILE}" ]; then
@@ -94,6 +105,7 @@ APP_ENV=production
 APP_KEY=${APP_KEY}
 APP_DEBUG=false
 APP_URL=${APP_URL}
+APP_TIMEZONE=UTC
 
 LOG_CHANNEL=stack
 LOG_LEVEL=info
@@ -108,6 +120,15 @@ QUEUE_CONNECTION=sync
 SESSION_DRIVER=file
 SESSION_LIFETIME=120
 
+MAIL_MAILER=log
+MAIL_HOST=localhost
+MAIL_PORT=587
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="noreply@vito.dev"
+MAIL_FROM_NAME="Vito"
+
 ADMIN_NAME=${NAME}
 ADMIN_EMAIL=${EMAIL}
 ADMIN_PASSWORD=${PASSWORD}
@@ -117,9 +138,15 @@ else
     echo "Using existing .env file from persistent storage"
     # Update dynamic values in existing .env
     sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" "${ENV_FILE}"
+    sed -i "s|^DB_DATABASE=.*|DB_DATABASE=${PERSISTENT_DIR}/storage/database.sqlite|" "${ENV_FILE}"
     sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
+    
+    # Ensure required variables exist (add if missing)
+    grep -q "^APP_TIMEZONE=" "${ENV_FILE}" || echo "APP_TIMEZONE=UTC" >> "${ENV_FILE}"
+    grep -q "^MAIL_MAILER=" "${ENV_FILE}" || echo "MAIL_MAILER=log" >> "${ENV_FILE}"
+    grep -q "^MAIL_FROM_ADDRESS=" "${ENV_FILE}" || echo 'MAIL_FROM_ADDRESS="noreply@vito.dev"' >> "${ENV_FILE}"
 fi
 
 # Link .env file to Laravel directory
