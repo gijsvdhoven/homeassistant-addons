@@ -2,9 +2,20 @@
 
 echo "=== Vito Home Assistant Add-on (Official Docker Image) ==="
 
-# Source bashio library if available
+# Test bashio availability first
+BASHIO_AVAILABLE=false
 if [ -f /usr/lib/bashio/bashio.sh ]; then
     source /usr/lib/bashio/bashio.sh
+    if command -v bashio &> /dev/null; then
+        if bashio::supervisor.ping 2>/dev/null >/dev/null; then
+            BASHIO_AVAILABLE=true
+            echo "Bashio API available"
+        else
+            echo "Bashio API not available - using fallback configuration"
+        fi
+    fi
+else
+    echo "Bashio library not found - using fallback configuration"
 fi
 
 # Setup persistent directories
@@ -13,20 +24,29 @@ echo "Setting up persistent directories..."
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/plugins"
 
-# Load configuration from Home Assistant
-echo "Loading configuration from Home Assistant..."
-NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
-EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
-PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
-
-# Handle ingress vs direct access
-if bashio::addon.ingress_entry 2>/dev/null; then
-    ADDON_SLUG=$(bashio::addon.slug)
-    APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
-    echo "Running in Home Assistant ingress mode"
+# Load configuration with proper fallbacks
+echo "Loading configuration..."
+if [ "$BASHIO_AVAILABLE" = true ]; then
+    NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
+    EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
+    PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+    
+    # Handle ingress vs direct access
+    if bashio::addon.ingress_entry 2>/dev/null; then
+        ADDON_SLUG=$(bashio::addon.slug 2>/dev/null || echo "vito")
+        APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
+        echo "Running in Home Assistant ingress mode"
+    else
+        APP_URL="http://homeassistant.local:80"
+        echo "Running in direct access mode"
+    fi
 else
-    APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:80")
-    echo "Running in direct access mode"
+    # Fallback configuration when bashio is not available
+    NAME=${NAME:-"Vito Admin"}
+    EMAIL=${EMAIL:-"admin@example.com"}
+    PASSWORD=${PASSWORD:-"password"}
+    APP_URL=${APP_URL:-"http://localhost:80"}
+    echo "Using environment variables or defaults"
 fi
 
 echo "Configuration:"
