@@ -11,10 +11,16 @@ fi
 
 # Setup persistent directories
 PERSISTENT_DIR="/data"
+echo "Setting up persistent directories at: ${PERSISTENT_DIR}"
 mkdir -p "${PERSISTENT_DIR}/database"
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
 mkdir -p "${PERSISTENT_DIR}/config"
+
+# Debug: Check if persistent directory is accessible
+echo "Persistent directory contents:"
+ls -la "${PERSISTENT_DIR}" || echo "Could not list ${PERSISTENT_DIR}"
+df -h "${PERSISTENT_DIR}" || echo "Could not check disk space for ${PERSISTENT_DIR}"
 
 # Test bashio API access first
 BASHIO_AVAILABLE=false
@@ -120,6 +126,11 @@ fi
 # Link .env file to Laravel directory
 ln -sf "${ENV_FILE}" /var/www/html/.env
 
+# Debug: Show .env file contents and database path
+echo "=== .env file contents ==="
+cat /var/www/html/.env | grep -E "(DB_DATABASE|APP_KEY|APP_URL)" || echo "Could not read .env file"
+echo "=========================="
+
 # Configure Apache for PHP and Ingress
 cat <<EOF >/etc/apache2/conf.d/vito.conf
 ServerName localhost
@@ -207,8 +218,21 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
     mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
     mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
     
-    # Create and migrate database
+    # Create database directory and file
+    mkdir -p "${PERSISTENT_DIR}/database"
     touch "${PERSISTENT_DIR}/database/database.sqlite"
+    
+    # Test database connection before migration
+    echo "Testing database connection..."
+    DB_PATH="${PERSISTENT_DIR}/database/database.sqlite"
+    if [ -f "$DB_PATH" ]; then
+        echo "Database file exists at: $DB_PATH"
+        ls -la "$DB_PATH"
+    else
+        echo "ERROR: Database file not found at: $DB_PATH"
+    fi
+    
+    # Migrate database
     php artisan migrate --force 2>/dev/null || true
     
     # Cache configuration
