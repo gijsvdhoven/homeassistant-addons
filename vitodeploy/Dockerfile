@@ -1,5 +1,4 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+FROM ubuntu:latest
 
 # The base image from Home Assistant’s build system is usually Debian-based.
 # We'll pull the Vito image contents here.
