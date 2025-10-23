@@ -1,2 +1,103 @@
 #!/bin/bash
 
+echo "=== Vito Home Assistant Add-on (Official Docker Image) ==="
+
+# Source bashio library if available
+if [ -f /usr/lib/bashio/bashio.sh ]; then
+    source /usr/lib/bashio/bashio.sh
+fi
+
+# Setup persistent directories
+PERSISTENT_DIR="/data"
+echo "Setting up persistent directories..."
+mkdir -p "${PERSISTENT_DIR}/storage"
+mkdir -p "${PERSISTENT_DIR}/plugins"
+
+# Load configuration from Home Assistant
+echo "Loading configuration from Home Assistant..."
+NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
+EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
+PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+
+# Handle ingress vs direct access
+if bashio::addon.ingress_entry 2>/dev/null; then
+    ADDON_SLUG=$(bashio::addon.slug)
+    APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
+    echo "Running in Home Assistant ingress mode"
+else
+    APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:80")
+    echo "Running in direct access mode"
+fi
+
+echo "Configuration:"
+echo "  Admin Name: $NAME"
+echo "  Admin Email: $EMAIL"
+echo "  App URL: $APP_URL"
+
+# Generate app key if not exists
+APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
+if [ ! -f "$APP_KEY_FILE" ]; then
+    echo "Generating new app key..."
+    APP_KEY="base64:$(openssl rand -base64 32)"
+    echo "$APP_KEY" > "$APP_KEY_FILE"
+    echo "App key saved to persistent storage"
+else
+    APP_KEY=$(cat "$APP_KEY_FILE")
+    echo "Using existing app key from persistent storage"
+fi
+
+# Set up persistent storage volumes
+echo "Setting up persistent storage..."
+if [ ! -L /var/www/html/storage ]; then
+    # Move existing storage to persistent location if it exists
+    if [ -d /var/www/html/storage ] && [ ! -L /var/www/html/storage ]; then
+        echo "Moving existing storage to persistent location..."
+        cp -r /var/www/html/storage/* "${PERSISTENT_DIR}/storage/" 2>/dev/null || true
+        rm -rf /var/www/html/storage
+    fi
+    ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
+fi
+
+if [ ! -L /var/www/html/app/Vito/Plugins ]; then
+    # Move existing plugins if they exist
+    if [ -d /var/www/html/app/Vito/Plugins ] && [ ! -L /var/www/html/app/Vito/Plugins ]; then
+        echo "Moving existing plugins to persistent location..."
+        mkdir -p "${PERSISTENT_DIR}/plugins"
+        cp -r /var/www/html/app/Vito/Plugins/* "${PERSISTENT_DIR}/plugins/" 2>/dev/null || true
+        rm -rf /var/www/html/app/Vito/Plugins
+    fi
+    mkdir -p /var/www/html/app/Vito
+    ln -sf "${PERSISTENT_DIR}/plugins" /var/www/html/app/Vito/Plugins
+fi
+
+# Set proper permissions
+chown -R www-data:www-data "${PERSISTENT_DIR}" 2>/dev/null || chown -R apache:apache "${PERSISTENT_DIR}"
+chown -R www-data:www-data /var/www/html 2>/dev/null || chown -R apache:apache /var/www/html
+
+# Export environment variables for Vito
+export APP_KEY="$APP_KEY"
+export NAME="$NAME"
+export EMAIL="$EMAIL"
+export PASSWORD="$PASSWORD" 
+export APP_URL="$APP_URL"
+
+echo ""
+echo "🎉 Starting Vito with official Docker image..."
+echo "📧 Admin Email: $EMAIL"
+echo "🔑 Admin Password: $PASSWORD"
+echo "🌐 Access URL: $APP_URL"
+echo ""
+
+# Use the original Vito container's startup approach
+# The official image should have its own entrypoint
+if [ -f "/entrypoint.sh" ]; then
+    echo "Running original Vito entrypoint..."
+    exec /entrypoint.sh
+elif [ -f "/usr/local/bin/start-container" ]; then
+    echo "Running Vito start script..."
+    exec /usr/local/bin/start-container
+else
+    echo "Starting with default command..."
+    # Fallback to whatever the original image's CMD was
+    exec "$@"
+fi
