@@ -46,12 +46,27 @@ fi
 Environment variables are dynamically generated in `run.sh` based on Home Assistant configuration:
 
 ```bash
-# .env generation from HA options
-APP_KEY=$(bashio::config 'app_key')
+# Auto-generated app key (persistent)
+APP_KEY=$(cat "${PERSISTENT_DIR}/app_key")
 ADMIN_EMAIL=$(bashio::config 'email')
 ```
 
-### 4. Apache Configuration Pattern
+### 4. Persistent Storage
+
+Critical data persists across container restarts using `/data` directory:
+
+```bash
+# Persistent directories mapped to /data
+PERSISTENT_DIR="/data"
+mkdir -p "${PERSISTENT_DIR}/database"
+mkdir -p "${PERSISTENT_DIR}/storage"
+
+# Symlink Laravel storage to persistent location
+ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
+DB_DATABASE="${PERSISTENT_DIR}/database/database.sqlite"
+```
+
+### 5. Apache Configuration Pattern
 
 Document root points to Laravel's public directory with proper rewrite rules:
 

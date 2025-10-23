@@ -1,5 +1,5 @@
 name: "Vito"
-version: "1.7.5"
+version: "1.7.6"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
@@ -22,14 +22,13 @@ map:
   - share:rw
   - ssl:ro
   - media:rw
+  - addon_config:rw
 options:
-  app_key: "base64:YOUR-32-CHARACTER-KEY-HERE"
   name: "vito"
   email: "admin@example.com"
   password: "password"
   app_url: "http://homeassistant.local:8123"
 schema:
-  app_key: str
   name: str
   email: str
   password: str

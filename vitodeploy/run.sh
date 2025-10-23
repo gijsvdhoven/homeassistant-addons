@@ -9,10 +9,14 @@ if [ -f /usr/lib/bashio/bashio.sh ]; then
     source /usr/lib/bashio/bashio.sh
 fi
 
+# Setup persistent directories
+PERSISTENT_DIR="/data"
+mkdir -p "${PERSISTENT_DIR}/database"
+mkdir -p "${PERSISTENT_DIR}/storage"
+
 # Check if running with ingress
 if command -v bashio &> /dev/null; then
     # Try to get configuration, but don't fail if API is not accessible
-    APP_KEY=$(bashio::config 'app_key' 2>/dev/null || echo "base64:YOUR-32-CHARACTER-KEY-HERE")
     NAME=$(bashio::config 'name' 2>/dev/null || echo "vito")
     EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
     PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
@@ -36,13 +40,24 @@ if command -v bashio &> /dev/null; then
     echo "Configuration loaded (or using defaults)"
 else
     # Fallback for local testing
-    APP_KEY=${APP_KEY:-base64:YOUR-32-CHARACTER-KEY-HERE}
     NAME=${NAME:-vito}
     EMAIL=${EMAIL:-admin@example.com}
     PASSWORD=${PASSWORD:-password}
     APP_URL=${APP_URL:-http://localhost}
     
     echo "Running in standalone mode (no bashio detected)"
+fi
+
+# Generate or retrieve app key
+APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
+if [ ! -f "${APP_KEY_FILE}" ]; then
+    echo "Generating new app key..."
+    APP_KEY="base64:$(openssl rand -base64 32)"
+    echo "${APP_KEY}" > "${APP_KEY_FILE}"
+    echo "App key saved to persistent storage"
+else
+    APP_KEY=$(cat "${APP_KEY_FILE}")
+    echo "Using existing app key from persistent storage"
 fi
 
 # Generate .env file
@@ -57,7 +72,7 @@ LOG_CHANNEL=stack
 LOG_LEVEL=info
 
 DB_CONNECTION=sqlite
-DB_DATABASE=/var/www/html/database/database.sqlite
+DB_DATABASE=${PERSISTENT_DIR}/database/database.sqlite
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -142,14 +157,18 @@ fi
 if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; then
     cd /var/www/html
     
-    # Generate key if needed
-    if grep -q "YOUR-32-CHARACTER-KEY-HERE" /var/www/html/.env; then
-        php artisan key:generate --force
+    # Link persistent storage to Laravel storage directory
+    if [ ! -L /var/www/html/storage ]; then
+        rm -rf /var/www/html/storage
+        ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
     fi
     
+    # Ensure storage structure exists
+    mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
+    mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
+    
     # Create and migrate database
-    mkdir -p /var/www/html/database
-    touch /var/www/html/database/database.sqlite
+    touch "${PERSISTENT_DIR}/database/database.sqlite"
     php artisan migrate --force 2>/dev/null || true
     
     # Cache configuration
@@ -161,11 +180,12 @@ fi
 
 # Set proper permissions
 chown -R apache:apache /var/www/html
+chown -R apache:apache "${PERSISTENT_DIR}"
 chmod -R 755 /var/www/html
-chmod -R 777 /var/www/html/storage 2>/dev/null || true
+chmod -R 777 "${PERSISTENT_DIR}/storage" 2>/dev/null || true
 chmod -R 777 /var/www/html/bootstrap/cache 2>/dev/null || true
-chmod 777 /var/www/html/database 2>/dev/null || true
-chmod 666 /var/www/html/database/database.sqlite 2>/dev/null || true
+chmod 777 "${PERSISTENT_DIR}/database" 2>/dev/null || true
+chmod 666 "${PERSISTENT_DIR}/database/database.sqlite" 2>/dev/null || true
 
 echo "Starting Vito web server on port 80..."
 
