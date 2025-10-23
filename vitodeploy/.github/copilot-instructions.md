@@ -92,12 +92,14 @@ httpd -t -f /etc/apache2/httpd.conf
 **CRITICAL**: Always increment the `version` number in `config.yaml` for ANY change to the add-on (Dockerfile, run.sh, config updates, etc.). Home Assistant uses this version to trigger rebuilds and updates.
 
 When modifying `config.yaml`:
+
 1. **Increment `version` number** (e.g., "1.7.3" → "1.7.4")
 2. Update `schema` section to match new `options`
 3. Update `run.sh` to handle new configuration variables
 4. Test both ingress and direct access modes
 
 When modifying other files (Dockerfile, run.sh, etc.):
+
 1. **Always increment `version` number in `config.yaml`**
 2. Test the build locally before pushing
 
