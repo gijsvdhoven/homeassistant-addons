@@ -1,5 +1,5 @@
 name: "Vito"
-version: "1.8.2"
+version: "2.1.0"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
@@ -12,9 +12,14 @@ init: false
 ingress: false
 panel_icon: mdi:server
 ports:
-  80/tcp: 8089
+  8000/tcp: 8089
 ports_description:
-  80/tcp: "Vito web interface"
+  8000/tcp: "Vito web interface (Laravel Sail)"
+privileged:
+  - SYS_ADMIN
+  - NET_ADMIN
+docker_api: true
+full_access: true
 map:
   - config:rw
   - share:rw

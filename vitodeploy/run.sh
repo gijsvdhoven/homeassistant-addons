@@ -1,261 +1,655 @@
-#!/bin/bash
+#!/bin/bash#!/bin/bash#!/bin/bash
 
-# Set environment variables for Composer
+
+
+echo "=== Vito Home Assistant Add-on (Laravel Sail) ==="
+
+
+
+# Set environment variablesecho "=== Vito Home Assistant Add-on Starting ==="echo "=== Vito Home Assistant Add-on Starting ==="
+
 export HOME=/root
+
 export COMPOSER_HOME=/root/.composer
 
-# Source bashio library if available
+
+
+# Source bashio library# Set environment variables for Composer# Set environment variables for Composer
+
 if [ -f /usr/lib/bashio/bashio.sh ]; then
-    source /usr/lib/bashio/bashio.sh
+
+    source /usr/lib/bashio/bashio.shexport HOME=/rootexport HOME=/root
+
 fi
+
+export COMPOSER_HOME=/root/.composerexport COMPOSER_HOME=/root/.composer
 
 # Setup persistent directories
+
 PERSISTENT_DIR="/data"
-echo "Setting up persistent directories at: ${PERSISTENT_DIR}"
-mkdir -p "${PERSISTENT_DIR}/storage"
-mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
-mkdir -p "${PERSISTENT_DIR}/config"
 
-# Debug: Check if persistent directory is accessible
-echo "Persistent directory contents:"
-ls -la "${PERSISTENT_DIR}" || echo "Could not list ${PERSISTENT_DIR}"
-df -h "${PERSISTENT_DIR}" || echo "Could not check disk space for ${PERSISTENT_DIR}"
+echo "Setting up persistent directories..."
 
-# Try to load configuration from Home Assistant, but don't let failures stop us
-echo "Attempting to load configuration from Home Assistant..."
+mkdir -p "${PERSISTENT_DIR}/storage"# Source bashio library if available# Source bashio library if available
 
-# Test a simple bashio call first
-BASHIO_WORKING=false
-if command -v bashio &> /dev/null; then
-    # Try a simple call that should work if API is accessible
-    if TEST_RESULT=$(timeout 5 bashio::supervisor.ping 2>/dev/null) && [ $? -eq 0 ]; then
-        # Try to get one config value to test if API really works
-        if TEST_NAME=$(timeout 5 bashio::config 'name' 2>/dev/null) && [ $? -eq 0 ]; then
-            BASHIO_WORKING=true
-            echo "Home Assistant API is working, loading configuration..."
-        else
-            echo "Home Assistant API calls are failing, using defaults..."
-        fi
-    else
-        echo "Cannot connect to Home Assistant supervisor, using defaults..."
-    fi
+mkdir -p "${PERSISTENT_DIR}/ssh-keys"
+
+mkdir -p "${PERSISTENT_DIR}/mysql"if [ -f /usr/lib/bashio/bashio.sh ]; thenif [ -f /usr/lib/bashio/bashio.sh ]; then
+
+mkdir -p "${PERSISTENT_DIR}/redis"
+
+    source /usr/lib/bashio/bashio.sh    source /usr/lib/bashio/bashio.sh
+
+# Load configuration from Home Assistant
+
+echo "Loading configuration..."fifi
+
+NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
+
+EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
+
+PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+
+APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8089")# Setup persistent directories# Setup persistent directories
+
+
+
+echo "Configuration:"PERSISTENT_DIR="/data"PERSISTENT_DIR="/data"
+
+echo "  Admin Name: $NAME"
+
+echo "  Admin Email: $EMAIL"echo "Setting up persistent directories..."echo "Setting up persistent directories..."
+
+echo "  App URL: $APP_URL"
+
+mkdir -p "${PERSISTENT_DIR}/storage"mkdir -p "${PERSISTENT_DIR}/storage"
+
+# Start Docker daemon
+
+echo "Starting Docker daemon..."mkdir -p "${PERSISTENT_DIR}/ssh-keys"mkdir -p "${PERSISTENT_DIR}/ssh-keys"
+
+dockerd &
+
+sleep 5
+
+
+
+# Wait for Docker to be ready# Load configuration from Home Assistant# Load configuration from Home Assistant
+
+echo "Waiting for Docker to be ready..."
+
+timeout=30echo "Loading configuration..."echo "Loading configuration..."
+
+while [ $timeout -gt 0 ] && ! docker info >/dev/null 2>&1; do
+
+    echo "  Waiting for Docker... ($timeout seconds left)"NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")NAME=$(bashio::config 'name' 2>/dev/null || echo "Vito Admin")
+
+    sleep 2
+
+    timeout=$((timeout - 2))EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")  EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")  
+
+done
+
+PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
+
+if ! docker info >/dev/null 2>&1; then
+
+    echo "❌ Docker failed to start!"APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8089")APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8089")
+
+    exit 1
+
+fi
+
+
+
+echo "✅ Docker is ready"echo "Configuration:"echo "Configuration:"
+
+
+
+# Setup Vito environmentecho "  Admin Name: $NAME"echo "  Admin Name: $NAME"
+
+echo "Setting up Vito environment..."
+
+cd /var/www/htmlecho "  Admin Email: $EMAIL"echo "  Admin Email: $EMAIL"
+
+
+
+# Generate SSH keys for server management (required by Vito)echo "  App URL: $APP_URL"echo "  App URL: $APP_URL"
+
+echo "Setting up SSH keys..."
+
+SSH_PRIVATE_KEY="${PERSISTENT_DIR}/ssh-keys/ssh-private.pem"
+
+SSH_PUBLIC_KEY="${PERSISTENT_DIR}/ssh-keys/ssh-public.key"
+
+# Generate SSH keys for server management (required by Vito)# Generate or retrieve app key
+
+if [ ! -f "$SSH_PRIVATE_KEY" ]; then
+
+    echo "Generating SSH key pair for server management..."echo "Setting up SSH keys..."APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
+
+    openssl genpkey -algorithm RSA -out "$SSH_PRIVATE_KEY"
+
+    chmod 600 "$SSH_PRIVATE_KEY"SSH_PRIVATE_KEY="${PERSISTENT_DIR}/ssh-keys/ssh-private.pem"if [ ! -f "${APP_KEY_FILE}" ]; then
+
+    ssh-keygen -y -f "$SSH_PRIVATE_KEY" > "$SSH_PUBLIC_KEY"
+
+    echo "SSH keys generated and stored persistently"SSH_PUBLIC_KEY="${PERSISTENT_DIR}/ssh-keys/ssh-public.key"    echo "Generating new app key..."
+
 else
-    echo "Bashio not available, using defaults..."
+
+    echo "Using existing SSH keys"    # Try OpenSSL first, fallback to PHP if not available
+
 fi
 
-# Load configuration
-if [ "$BASHIO_WORKING" = true ]; then
-    # Use bashio to get configuration (we know it works)
-    NAME=$(bashio::config 'name' || echo "vito")
-    EMAIL=$(bashio::config 'email' || echo "admin@example.com")  
-    PASSWORD=$(bashio::config 'password' || echo "password")
-    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8089")
-    
-    echo "Configuration loaded from Home Assistant"
-else
-    # Use safe defaults when API is not working
-    NAME="vito"
-    EMAIL="admin@example.com"
-    PASSWORD="password"
-    APP_URL="http://homeassistant.local:8089"
-    
-    echo "Using safe default configuration with direct port access"
+if [ ! -f "$SSH_PRIVATE_KEY" ]; then    if command -v openssl &> /dev/null; then
+
+# Link persistent storage
+
+if [ ! -L /var/www/html/storage ]; then    echo "Generating SSH key pair for server management..."        APP_KEY="base64:$(openssl rand -base64 32)"
+
+    rm -rf /var/www/html/storage
+
+    ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage    openssl genpkey -algorithm RSA -out "$SSH_PRIVATE_KEY"    else
+
 fi
 
-# Ensure APP_URL is never empty
-if [ -z "$APP_URL" ] || [ "$APP_URL" = "" ]; then
-    APP_URL="http://homeassistant.local:8089"
-    echo "APP_URL was empty, setting to: $APP_URL"
-fi
+    chmod 600 "$SSH_PRIVATE_KEY"        echo "OpenSSL not available, using PHP for key generation..."
 
-echo "Final configuration:"
-echo "  NAME: $NAME"
-echo "  EMAIL: $EMAIL"
-echo "  APP_URL: $APP_URL"
+# Ensure storage structure exists
 
-# Generate or retrieve app key
-APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
-if [ ! -f "${APP_KEY_FILE}" ]; then
-    echo "Generating new app key..."
-    # Try OpenSSL first, fallback to PHP if not available
-    if command -v openssl &> /dev/null; then
-        APP_KEY="base64:$(openssl rand -base64 32)"
-    else
-        echo "OpenSSL not available, using PHP for key generation..."
-        APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
-    fi
-    echo "${APP_KEY}" > "${APP_KEY_FILE}"
-    echo "App key saved to persistent storage"
-else
-    APP_KEY=$(cat "${APP_KEY_FILE}")
-    echo "Using existing app key from persistent storage"
-fi
+mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}    ssh-keygen -y -f "$SSH_PRIVATE_KEY" > "$SSH_PUBLIC_KEY"        APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
 
-# Generate or use persistent .env file
-ENV_FILE="${PERSISTENT_DIR}/config/.env"
-if [ ! -f "${ENV_FILE}" ]; then
-    echo "Generating new .env file..."
-    # Generate .env file
-    cat <<EOF >"${ENV_FILE}"
+mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
+
+    echo "SSH keys generated and stored persistently"    fi
+
+# Link SSH keys to Vito storage directory
+
+ln -sf "$SSH_PRIVATE_KEY" "${PERSISTENT_DIR}/storage/ssh-private.pem"else    echo "${APP_KEY}" > "${APP_KEY_FILE}"
+
+ln -sf "$SSH_PUBLIC_KEY" "${PERSISTENT_DIR}/storage/ssh-public.key"
+
+    echo "Using existing SSH keys"    echo "App key saved to persistent storage"
+
+# Setup environment file for Sail
+
+echo "Setting up Vito environment file..."fielse
+
+if [ -f .env.sail ]; then
+
+    cp .env.sail .env    APP_KEY=$(cat "${APP_KEY_FILE}")
+
+    echo "Using .env.sail as base configuration"
+
+else# Setup Vito environment following official documentation    echo "Using existing app key from persistent storage"
+
+    echo "No .env.sail found, creating .env from .env.example"
+
+    if [ -f .env.example ]; thenecho "Setting up Vito environment..."fi
+
+        cp .env.example .env
+
+    elsecd /var/www/html
+
+        echo "Creating basic .env file"
+
+        cat <<EOF >.env# Generate or use persistent .env file
+
 APP_NAME=Vito
-APP_ENV=production
-APP_KEY=${APP_KEY}
-APP_DEBUG=false
+
+APP_ENV=production# Link persistent storage to Laravel storage directoryENV_FILE="${PERSISTENT_DIR}/config/.env"
+
+APP_KEY=
+
+APP_DEBUG=falseif [ ! -L /var/www/html/storage ]; thenif [ ! -f "${ENV_FILE}" ]; then
+
 APP_URL=${APP_URL}
-APP_TIMEZONE=UTC
 
-LOG_CHANNEL=stack
-LOG_LEVEL=info
+APP_TIMEZONE=UTC    rm -rf /var/www/html/storage    echo "Generating new .env file..."
 
-DB_CONNECTION=sqlite
-DB_DATABASE=database.sqlite
+
+
+LOG_CHANNEL=stack    ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage    # Generate .env file
+
+LOG_DEPRECATIONS_CHANNEL=null
+
+LOG_LEVEL=debugfi    cat <<EOF >"${ENV_FILE}"
+
+
+
+DB_CONNECTION=sqliteAPP_NAME=Vito
+
+DB_DATABASE=/var/www/html/storage/database.sqlite
+
+# Ensure storage structure existsAPP_ENV=production
 
 BROADCAST_DRIVER=log
-CACHE_DRIVER=file
-FILESYSTEM_DRIVER=local
-QUEUE_CONNECTION=sync
+
+CACHE_DRIVER=filemkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}APP_KEY=${APP_KEY}
+
+FILESYSTEM_DISK=local
+
+QUEUE_CONNECTION=syncmkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}APP_DEBUG=false
+
 SESSION_DRIVER=file
-SESSION_LIFETIME=120
 
-MAIL_MAILER=log
+SESSION_LIFETIME=120APP_URL=${APP_URL}
+
+
+
+MAIL_MAILER=log# Link SSH keys to Vito storage directoryAPP_TIMEZONE=UTC
+
 MAIL_HOST=localhost
-MAIL_PORT=587
+
+MAIL_PORT=1025ln -sf "$SSH_PRIVATE_KEY" "${PERSISTENT_DIR}/storage/ssh-private.pem"
+
 MAIL_USERNAME=null
-MAIL_PASSWORD=null
+
+MAIL_PASSWORD=nullln -sf "$SSH_PUBLIC_KEY" "${PERSISTENT_DIR}/storage/ssh-public.key"LOG_CHANNEL=stack
+
 MAIL_ENCRYPTION=null
-MAIL_FROM_ADDRESS="noreply@vito.dev"
-MAIL_FROM_NAME="Vito"
 
-ADMIN_NAME=${NAME}
-ADMIN_EMAIL=${EMAIL}
-ADMIN_PASSWORD=${PASSWORD}
-EOF
-    echo ".env file created and saved to persistent storage"
-else
-    echo "Using existing .env file from persistent storage"
-    # Update dynamic values in existing .env
-    sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" "${ENV_FILE}"
-    sed -i "s|^DB_DATABASE=.*|DB_DATABASE=database.sqlite|" "${ENV_FILE}"
-    sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
-    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
-    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
+MAIL_FROM_ADDRESS="hello@example.com"LOG_LEVEL=info
 
-    
-    # Ensure required variables exist (add if missing)
-    grep -q "^APP_TIMEZONE=" "${ENV_FILE}" || echo "APP_TIMEZONE=UTC" >> "${ENV_FILE}"
-    grep -q "^MAIL_MAILER=" "${ENV_FILE}" || echo "MAIL_MAILER=log" >> "${ENV_FILE}"
-    grep -q "^MAIL_FROM_ADDRESS=" "${ENV_FILE}" || echo 'MAIL_FROM_ADDRESS="noreply@vito.dev"' >> "${ENV_FILE}"
-fi
+MAIL_FROM_NAME="\${APP_NAME}"
 
-# Link .env file to Laravel directory
-ln -sf "${ENV_FILE}" /var/www/html/.env
+# Use Vito's sail environment as base and customize
 
-# Debug: Show .env file contents and database path
-echo "=== .env file contents ==="
-cat /var/www/html/.env | grep -E "(DB_DATABASE|APP_KEY|APP_URL)" || echo "Could not read .env file"
-echo "=========================="
+VITE_APP_NAME="\${APP_NAME}"
 
-# Configure Apache for PHP and Ingress
-cat <<EOF >/etc/apache2/conf.d/vito.conf
-ServerName localhost
-DocumentRoot "/var/www/html/public"
+EOFif [ -f .env.sail ]; thenDB_CONNECTION=sqlite
 
-<Directory "/var/www/html">
-    Options FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-
-<Directory "/var/www/html/public">
-    Options FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-
-# PHP configuration
-AddType application/x-httpd-php .php
-DirectoryIndex index.php index.html
-EOF
-
-# Enable Apache modules (check if not already enabled)
-if ! grep -q "^LoadModule rewrite_module" /etc/apache2/httpd.conf; then
-    echo "LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so" >> /etc/apache2/httpd.conf
-fi
-if ! grep -q "^LoadModule headers_module" /etc/apache2/httpd.conf; then
-    echo "LoadModule headers_module /usr/lib/apache2/mod_headers.so" >> /etc/apache2/httpd.conf
-fi
-
-# Create .htaccess for Laravel
-cat <<'EOF' >/var/www/html/public/.htaccess
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
-    RewriteEngine On
-
-    # Handle Authorization Header
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
-    # Redirect Trailing Slashes If Not A Folder...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
-
-    # Handle Front Controller...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ index.php [L]
-</IfModule>
-EOF
-
-# Install Vito dependencies if not already installed
-if [ ! -f /var/www/html/vendor/autoload.php ]; then
-    echo "Installing Vito dependencies..."
-    cd /var/www/html
-    
-    # Install Composer dependencies
-    if command -v composer &> /dev/null; then
-        composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
     fi
+
+fi    cp .env.sail .envDB_DATABASE=database.sqlite
+
+
+
+# Customize environment for add-on    echo "Using .env.sail as base configuration"
+
+sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" .env
+
+sed -i "s|^DB_CONNECTION=.*|DB_CONNECTION=sqlite|" .envelseBROADCAST_DRIVER=log
+
+sed -i "s|^DB_DATABASE=.*|DB_DATABASE=/var/www/html/storage/database.sqlite|" .env
+
+    echo "No .env.sail found, creating basic .env"CACHE_DRIVER=file
+
+# Generate application key
+
+echo "Generating application key..."    cat <<EOF >.envFILESYSTEM_DRIVER=local
+
+php artisan key:generate --force
+
+APP_NAME=VitoQUEUE_CONNECTION=sync
+
+# Create database file
+
+echo "Setting up database..."APP_ENV=productionSESSION_DRIVER=file
+
+touch /var/www/html/storage/database.sqlite
+
+chmod 666 /var/www/html/storage/database.sqliteAPP_DEBUG=falseSESSION_LIFETIME=120
+
+
+
+# Install dependencies if not presentAPP_URL=${APP_URL}
+
+if [ ! -d "vendor" ]; then
+
+    echo "Installing Composer dependencies..."APP_TIMEZONE=UTCMAIL_MAILER=log
+
+    composer install --no-dev --optimize-autoloader
+
+fiMAIL_HOST=localhost
+
+
+
+# Install npm dependencies and build assets if neededLOG_CHANNEL=stackMAIL_PORT=587
+
+if [ -f "package.json" ] && [ ! -d "node_modules" ]; then
+
+    echo "Installing npm dependencies..."LOG_DEPRECATIONS_CHANNEL=nullMAIL_USERNAME=null
+
+    npm ci
+
+fiLOG_LEVEL=debugMAIL_PASSWORD=null
+
+
+
+if [ -f "vite.config.js" ] && [ ! -d "public/build" ]; thenMAIL_ENCRYPTION=null
+
+    echo "Building frontend assets..."
+
+    npm run buildDB_CONNECTION=sqliteMAIL_FROM_ADDRESS="noreply@vito.dev"
+
 fi
 
-# Setup Laravel application
-if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; then
-    cd /var/www/html
-    
-    # Link persistent storage to Laravel storage directory
-    if [ ! -L /var/www/html/storage ]; then
-        rm -rf /var/www/html/storage
-        ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
-    fi
-    
-    # Link persistent bootstrap cache
-    if [ ! -L /var/www/html/bootstrap/cache ]; then
-        rm -rf /var/www/html/bootstrap/cache
-        ln -sf "${PERSISTENT_DIR}/bootstrap/cache" /var/www/html/bootstrap/cache
-    fi
-    
-    # Ensure storage structure exists
-    mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
-    mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
-    
-    # Create database file in storage directory
-    touch "${PERSISTENT_DIR}/storage/database.sqlite"
-    
-    # Test database connection before migration
-    echo "Testing database connection..."
-    DB_PATH="${PERSISTENT_DIR}/storage/database.sqlite"
-    if [ -f "$DB_PATH" ]; then
-        echo "Database file exists at: $DB_PATH"
-        ls -la "$DB_PATH"
-        echo "Laravel should see it as: database.sqlite (relative to storage directory)"
-        echo "Actual Laravel storage path: /var/www/html/storage/"
-        ls -la /var/www/html/storage/database.sqlite 2>/dev/null || echo "Symlink check failed"
+DB_DATABASE=/var/www/html/storage/database.sqliteMAIL_FROM_NAME="Vito"
+
+# Run migrations
+
+echo "Running database migrations..."
+
+php artisan migrate --force
+
+BROADCAST_DRIVER=logADMIN_NAME=${NAME}
+
+# Setup admin user
+
+echo "Setting up admin user..."CACHE_DRIVER=fileADMIN_EMAIL=${EMAIL}
+
+USER_COUNT=$(php artisan tinker --execute="echo App\Models\User::count();" 2>/dev/null | tail -n1 || echo "0")
+
+if [ "$USER_COUNT" = "0" ] || [ "$USER_COUNT" = "" ]; thenFILESYSTEM_DISK=localADMIN_PASSWORD=${PASSWORD}
+
+    echo "Creating admin user..."
+
+    # Try the official user:create command firstQUEUE_CONNECTION=syncEOF
+
+    if php artisan user:create "$NAME" "$EMAIL" "$PASSWORD" 2>/dev/null; then
+
+        echo "✅ Admin user created successfully with user:create command"SESSION_DRIVER=file    echo ".env file created and saved to persistent storage"
+
     else
-        echo "ERROR: Database file not found at: $DB_PATH"
+
+        echo "Using tinker to create admin user..."SESSION_LIFETIME=120else
+
+        php artisan tinker --execute="
+
+            \$user = new App\Models\User();    echo "Using existing .env file from persistent storage"
+
+            \$user->name = '$NAME';
+
+            \$user->email = '$EMAIL';MEMCACHED_HOST=127.0.0.1    # Update dynamic values in existing .env
+
+            \$user->password = Hash::make('$PASSWORD');
+
+            \$user->save();    sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" "${ENV_FILE}"
+
+            echo '✅ Admin user created successfully with tinker';
+
+        "REDIS_HOST=127.0.0.1    sed -i "s|^DB_DATABASE=.*|DB_DATABASE=database.sqlite|" "${ENV_FILE}"
+
     fi
+
+elseREDIS_PASSWORD=null    sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
+
+    echo "✅ Admin user already exists"
+
+fiREDIS_PORT=6379    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
+
+
+
+# Set permissions    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
+
+chown -R www-data:www-data /var/www/html
+
+chown -R www-data:www-data "${PERSISTENT_DIR}"MAIL_MAILER=smtp
+
+chmod -R 755 /var/www/html
+
+chmod -R 777 "${PERSISTENT_DIR}/storage"MAIL_HOST=mailpit    
+
+
+
+echo ""MAIL_PORT=1025    # Ensure required variables exist (add if missing)
+
+echo "🎉 Vito is ready!"
+
+echo "📧 Admin Email: $EMAIL"MAIL_USERNAME=null    grep -q "^APP_TIMEZONE=" "${ENV_FILE}" || echo "APP_TIMEZONE=UTC" >> "${ENV_FILE}"
+
+echo "🔑 Admin Password: $PASSWORD"
+
+echo "🌐 Access URL: $APP_URL"MAIL_PASSWORD=null    grep -q "^MAIL_MAILER=" "${ENV_FILE}" || echo "MAIL_MAILER=log" >> "${ENV_FILE}"
+
+echo ""
+
+MAIL_ENCRYPTION=null    grep -q "^MAIL_FROM_ADDRESS=" "${ENV_FILE}" || echo 'MAIL_FROM_ADDRESS="noreply@vito.dev"' >> "${ENV_FILE}"
+
+# Check if Sail is available
+
+if [ -f "./vendor/bin/sail" ]; thenMAIL_FROM_ADDRESS="hello@example.com"fi
+
+    echo "🚢 Starting with Laravel Sail..."
+
+    MAIL_FROM_NAME="\${APP_NAME}"
+
+    # Export necessary environment variables for Sail
+
+    export WWWUSER=1000# Link .env file to Laravel directory
+
+    export WWWGROUP=1000
+
+    AWS_ACCESS_KEY_ID=ln -sf "${ENV_FILE}" /var/www/html/.env
+
+    # Start Laravel Sail (this will start the web server)
+
+    ./vendor/bin/sail up --no-deps laravel.testAWS_SECRET_ACCESS_KEY=
+
+else
+
+    echo "⚠️  Sail not found, starting with PHP built-in server..."AWS_DEFAULT_REGION=us-east-1# Debug: Show .env file contents and database path
+
+    
+
+    # Optimize LaravelAWS_BUCKET=echo "=== .env file contents ==="
+
+    php artisan config:cache
+
+    php artisan route:cacheAWS_USE_PATH_STYLE_ENDPOINT=falsecat /var/www/html/.env | grep -E "(DB_DATABASE|APP_KEY|APP_URL)" || echo "Could not read .env file"
+
+    php artisan view:cache
+
+    echo "=========================="
+
+    # Start PHP built-in server as fallback
+
+    php artisan serve --host=0.0.0.0 --port=8000PUSHER_APP_ID=
+
+fi
+PUSHER_APP_KEY=# Configure Apache for PHP and Ingress
+
+PUSHER_APP_SECRET=cat <<EOF >/etc/apache2/conf.d/vito.conf
+
+PUSHER_HOST=ServerName localhost
+
+PUSHER_PORT=443DocumentRoot "/var/www/html/public"
+
+PUSHER_SCHEME=https
+
+PUSHER_APP_CLUSTER=mt1<Directory "/var/www/html">
+
+    Options FollowSymLinks
+
+VITE_APP_NAME="\${APP_NAME}"    AllowOverride All
+
+VITE_PUSHER_APP_KEY="\${PUSHER_APP_KEY}"    Require all granted
+
+VITE_PUSHER_HOST="\${PUSHER_HOST}"</Directory>
+
+VITE_PUSHER_PORT="\${PUSHER_PORT}"
+
+VITE_PUSHER_SCHEME="\${PUSHER_SCHEME}"<Directory "/var/www/html/public">
+
+VITE_PUSHER_APP_CLUSTER="\${PUSHER_APP_CLUSTER}"    Options FollowSymLinks
+
+EOF    AllowOverride All
+
+fi    Require all granted
+
+</Directory>
+
+# Customize environment for add-on
+
+sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" .env# PHP configuration
+
+sed -i "s|^DB_DATABASE=.*|DB_DATABASE=/var/www/html/storage/database.sqlite|" .envAddType application/x-httpd-php .php
+
+DirectoryIndex index.php index.html
+
+# Generate application key if neededEOF
+
+echo "Generating application key..."
+
+php artisan key:generate --force# Enable Apache modules (check if not already enabled)
+
+if ! grep -q "^LoadModule rewrite_module" /etc/apache2/httpd.conf; then
+
+# Create database file    echo "LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so" >> /etc/apache2/httpd.conf
+
+echo "Setting up database..."fi
+
+touch /var/www/html/storage/database.sqliteif ! grep -q "^LoadModule headers_module" /etc/apache2/httpd.conf; then
+
+    echo "LoadModule headers_module /usr/lib/apache2/mod_headers.so" >> /etc/apache2/httpd.conf
+
+# Run migrationsfi
+
+echo "Running database migrations..."
+
+php artisan migrate --force# Create .htaccess for Laravel
+
+cat <<'EOF' >/var/www/html/public/.htaccess
+
+# Check if admin user exists, create if not<IfModule mod_rewrite.c>
+
+echo "Setting up admin user..."    <IfModule mod_negotiation.c>
+
+USER_COUNT=$(php artisan tinker --execute="echo App\Models\User::count();" 2>/dev/null | tail -n1 || echo "0")        Options -MultiViews -Indexes
+
+if [ "$USER_COUNT" = "0" ] || [ "$USER_COUNT" = "" ]; then    </IfModule>
+
+    echo "Creating admin user..."
+
+    php artisan user:create "$NAME" "$EMAIL" "$PASSWORD" 2>/dev/null || {    RewriteEngine On
+
+        echo "user:create command not found, using tinker..."
+
+        php artisan tinker --execute="    # Handle Authorization Header
+
+            \$user = new App\Models\User();    RewriteCond %{HTTP:Authorization} .
+
+            \$user->name = '$NAME';    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+            \$user->email = '$EMAIL';
+
+            \$user->password = Hash::make('$PASSWORD');    # Redirect Trailing Slashes If Not A Folder...
+
+            \$user->save();    RewriteCond %{REQUEST_FILENAME} !-d
+
+            echo 'Admin user created successfully';    RewriteCond %{REQUEST_URI} (.+)/$
+
+        "    RewriteRule ^ %1 [L,R=301]
+
+    }
+
+else    # Handle Front Controller...
+
+    echo "Admin user already exists"    RewriteCond %{REQUEST_FILENAME} !-d
+
+fi    RewriteCond %{REQUEST_FILENAME} !-f
+
+    RewriteRule ^ index.php [L]
+
+# Clear and optimize caches</IfModule>
+
+echo "Optimizing application..."EOF
+
+php artisan config:cache
+
+php artisan route:cache# Install Vito dependencies if not already installed
+
+php artisan view:cacheif [ ! -f /var/www/html/vendor/autoload.php ]; then
+
+    echo "Installing Vito dependencies..."
+
+# Set proper permissions    cd /var/www/html
+
+echo "Setting permissions..."    
+
+chown -R apache:apache /var/www/html    # Install Composer dependencies
+
+chown -R apache:apache "${PERSISTENT_DIR}"    if command -v composer &> /dev/null; then
+
+chmod -R 755 /var/www/html        composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+chmod -R 777 "${PERSISTENT_DIR}/storage"    fi
+
+chmod 666 "/var/www/html/storage/database.sqlite"fi
+
+
+
+# Configure Apache for PHP# Setup Laravel application
+
+cat <<EOF >/etc/apache2/conf.d/vito.confif [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; then
+
+ServerName localhost    cd /var/www/html
+
+DocumentRoot "/var/www/html/public"    
+
+    # Link persistent storage to Laravel storage directory
+
+<Directory "/var/www/html">    if [ ! -L /var/www/html/storage ]; then
+
+    Options FollowSymLinks        rm -rf /var/www/html/storage
+
+    AllowOverride All        ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
+
+    Require all granted    fi
+
+</Directory>    
+
+    # Link persistent bootstrap cache
+
+<Directory "/var/www/html/public">    if [ ! -L /var/www/html/bootstrap/cache ]; then
+
+    Options FollowSymLinks        rm -rf /var/www/html/bootstrap/cache
+
+    AllowOverride All        ln -sf "${PERSISTENT_DIR}/bootstrap/cache" /var/www/html/bootstrap/cache
+
+    Require all granted    fi
+
+</Directory>    
+
+    # Ensure storage structure exists
+
+AddType application/x-httpd-php .php    mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
+
+DirectoryIndex index.php index.html    mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
+
+EOF    
+
+    # Create database file in storage directory
+
+# Enable Apache modules    touch "${PERSISTENT_DIR}/storage/database.sqlite"
+
+echo "LoadModule rewrite_module /usr/lib/apache2/mod_rewrite.so" >> /etc/apache2/httpd.conf    
+
+echo "LoadModule headers_module /usr/lib/apache2/mod_headers.so" >> /etc/apache2/httpd.conf    # Test database connection before migration
+
+    echo "Testing database connection..."
+
+echo ""    DB_PATH="${PERSISTENT_DIR}/storage/database.sqlite"
+
+echo "🎉 Vito is ready!"    if [ -f "$DB_PATH" ]; then
+
+echo "📧 Admin Email: $EMAIL"        echo "Database file exists at: $DB_PATH"
+
+echo "🔑 Admin Password: $PASSWORD"          ls -la "$DB_PATH"
+
+echo "🌐 Access URL: $APP_URL"        echo "Laravel should see it as: database.sqlite (relative to storage directory)"
+
+echo ""        echo "Actual Laravel storage path: /var/www/html/storage/"
+
+echo "Starting Apache web server..."        ls -la /var/www/html/storage/database.sqlite 2>/dev/null || echo "Symlink check failed"
+
+    else
+
+# Run Apache in foreground        echo "ERROR: Database file not found at: $DB_PATH"
+
+exec httpd -D FOREGROUND -f /etc/apache2/httpd.conf    fi
     
     # Migrate database
     php artisan migrate --force 2>/dev/null || true

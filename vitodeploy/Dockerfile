@@ -1,58 +1,73 @@
-# Use Alpine-based HA base
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
-FROM ${BUILD_FROM}
+# Use Ubuntu base for better Docker/Sail compatibility
+FROM ubuntu:22.04
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    ca-certificates \
+    lsb-release \
+    apt-transport-https \
+    curl \
+    gnupg \
+    unzip \
+    git \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP 8.3
+RUN add-apt-repository ppa:ondrej/php -y \
+    && apt-get update \
+    && apt-get install -y \
+    php8.3 \
+    php8.3-cli \
+    php8.3-fpm \
+    php8.3-mysql \
+    php8.3-pgsql \
+    php8.3-sqlite3 \
+    php8.3-redis \
+    php8.3-zip \
+    php8.3-gd \
+    php8.3-mbstring \
+    php8.3-curl \
+    php8.3-xml \
+    php8.3-bcmath \
+    php8.3-intl \
+    php8.3-readline \
+    php8.3-pcov \
+    php8.3-msgpack \
+    php8.3-igbinary \
+    php8.3-ldap \
+    php8.3-redis \
+    php8.3-swoole \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
 # Set environment variables
 ENV HOME=/root
 ENV COMPOSER_HOME=/root/.composer
 
-# Install Apache + PHP + dependencies
-RUN apk add --no-cache \
-    apache2 \
-    apache2-utils \
-    php83 \
-    php83-apache2 \
-    php83-mbstring \
-    php83-xml \
-    php83-curl \
-    php83-zip \
-    php83-sqlite3 \
-    php83-json \
-    php83-cli \
-    php83-common \
-    php83-bcmath \
-    php83-session \
-    php83-tokenizer \
-    php83-dom \
-    php83-fileinfo \
-    php83-pdo \
-    php83-pdo_sqlite \
-    php83-pdo_mysql \
-    php83-openssl \
-    php83-ctype \
-    php83-iconv \
-    php83-simplexml \
-    php83-xmlwriter \
-    php83-phar \
-    php83-gd \
-    php83-intl \
-    php83-opcache \
-    php83-ftp \
-    php83-pcntl \
-    php83-posix \
-    git \
-    unzip \
-    curl \
-    bash \
-    openssl \
-    nodejs \
-    npm
-
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Create PHP symlinks
-RUN ln -sf /usr/bin/php83 /usr/bin/php
+# Create PHP symlink
+RUN ln -sf /usr/bin/php8.3 /usr/bin/php
+
+# Install bashio for Home Assistant integration
+RUN curl -J -L -o /tmp/bashio.tar.gz "https://github.com/hassio-addons/bashio/archive/v0.16.2.tar.gz" \
+    && tar zxvf /tmp/bashio.tar.gz --strip 1 -C /tmp \
+    && mv /tmp/lib /usr/lib/bashio \
+    && ln -s /usr/lib/bashio/bashio /usr/bin/bashio \
+    && rm -rf /tmp/bashio.tar.gz /tmp/*
 
 # Clone and setup Vito
 WORKDIR /var/www/html
@@ -62,22 +77,20 @@ RUN git clone https://github.com/vitodeploy/vito.git . && \
 # Install Vito dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-req=php
 
-# Build frontend assets if package.json exists
+# Build frontend assets if needed
 RUN if [ -f package.json ]; then \
-        npm install --production && \
+        echo "Building frontend assets..." && \
+        npm ci --only=production && \
         npm run build; \
+    else \
+        echo "No package.json found, skipping frontend build"; \
     fi
 
-# Create necessary directories and set permissions
+# Create necessary directories
 RUN mkdir -p storage/{app,framework,logs} && \
     mkdir -p storage/framework/{cache,sessions,views,testing} && \
     mkdir -p bootstrap/cache && \
-    mkdir -p database && \
-    chmod -R 777 storage bootstrap/cache database
-
-# Create default .env file
-RUN cp .env.example .env 2>/dev/null || \
-    echo -e "APP_NAME=Vito\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://localhost\n\nDB_CONNECTION=sqlite\nDB_DATABASE=/var/www/html/database/database.sqlite" > .env
+    chmod -R 755 storage bootstrap/cache
 
 # Copy run script
 COPY run.sh /run.sh
