@@ -1,12 +1,12 @@
 name: "Vito"
-version: "1.7.6"
+version: "1.7.8"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
   - amd64
   - aarch64
   - armv7
-startup: services
+startup: application
 boot: auto
 init: false
 ingress: true

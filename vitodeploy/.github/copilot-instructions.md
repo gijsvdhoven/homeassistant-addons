@@ -60,9 +60,13 @@ Critical data persists across container restarts using `/data` directory:
 PERSISTENT_DIR="/data"
 mkdir -p "${PERSISTENT_DIR}/database"
 mkdir -p "${PERSISTENT_DIR}/storage"
+mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
+mkdir -p "${PERSISTENT_DIR}/config"
 
-# Symlink Laravel storage to persistent location
+# Symlink Laravel directories to persistent locations
 ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
+ln -sf "${PERSISTENT_DIR}/bootstrap/cache" /var/www/html/bootstrap/cache
+ln -sf "${PERSISTENT_DIR}/config/.env" /var/www/html/.env
 DB_DATABASE="${PERSISTENT_DIR}/database/database.sqlite"
 ```
 
@@ -156,6 +160,24 @@ chmod 666 /var/www/html/database/database.sqlite
 ### s6-overlay Conflicts
 
 Use `init: false` in config.yaml and avoid s6 services. Run processes directly with `exec` in run.sh.
+
+### Bashio API Access Issues
+
+Handle API access errors gracefully with error suppression:
+
+```bash
+# Suppress bashio API errors and use fallbacks
+NAME=$(bashio::config 'name' 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
+```
+
+### Missing System Dependencies
+
+Ensure required tools are installed in Dockerfile:
+
+```dockerfile
+# Add OpenSSL for key generation
+openssl
+```
 
 ### Ingress Path Issues
 

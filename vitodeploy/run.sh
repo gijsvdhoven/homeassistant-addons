@@ -13,26 +13,28 @@ fi
 PERSISTENT_DIR="/data"
 mkdir -p "${PERSISTENT_DIR}/database"
 mkdir -p "${PERSISTENT_DIR}/storage"
+mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
+mkdir -p "${PERSISTENT_DIR}/config"
 
 # Check if running with ingress
 if command -v bashio &> /dev/null; then
-    # Try to get configuration, but don't fail if API is not accessible
-    NAME=$(bashio::config 'name' 2>/dev/null || echo "vito")
-    EMAIL=$(bashio::config 'email' 2>/dev/null || echo "admin@example.com")
-    PASSWORD=$(bashio::config 'password' 2>/dev/null || echo "password")
-    APP_URL=$(bashio::config 'app_url' 2>/dev/null || echo "http://homeassistant.local:8123")
+    # Try to get configuration, suppress API errors
+    NAME=$(bashio::config 'name' 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
+    EMAIL=$(bashio::config 'email' 2>&1 | grep -v "ERROR" | tail -n1 || echo "admin@example.com")
+    PASSWORD=$(bashio::config 'password' 2>&1 | grep -v "ERROR" | tail -n1 || echo "password")
+    APP_URL=$(bashio::config 'app_url' 2>&1 | grep -v "ERROR" | tail -n1 || echo "http://homeassistant.local:8123")
     
-    # Check for ingress
+    # Check for ingress (suppress errors)
     INGRESS_ENABLED=false
-    if bashio::addon.ingress_entry 2>/dev/null; then
-        INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>/dev/null)
+    INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>&1 | grep -v "ERROR" | tail -n1)
+    if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
         INGRESS_ENABLED=true
         echo "Ingress enabled with entry: ${INGRESS_ENTRY}"
     fi
     
     # If ingress is enabled, use the ingress URL
     if [ "$INGRESS_ENABLED" = true ]; then
-        ADDON_SLUG=$(bashio::addon.slug 2>/dev/null || echo "vito")
+        ADDON_SLUG=$(bashio::addon.slug 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
         APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
         echo "Setting APP_URL for ingress: ${APP_URL}"
     fi
@@ -52,7 +54,13 @@ fi
 APP_KEY_FILE="${PERSISTENT_DIR}/app_key"
 if [ ! -f "${APP_KEY_FILE}" ]; then
     echo "Generating new app key..."
-    APP_KEY="base64:$(openssl rand -base64 32)"
+    # Try OpenSSL first, fallback to PHP if not available
+    if command -v openssl &> /dev/null; then
+        APP_KEY="base64:$(openssl rand -base64 32)"
+    else
+        echo "OpenSSL not available, using PHP for key generation..."
+        APP_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+    fi
     echo "${APP_KEY}" > "${APP_KEY_FILE}"
     echo "App key saved to persistent storage"
 else
@@ -60,8 +68,12 @@ else
     echo "Using existing app key from persistent storage"
 fi
 
-# Generate .env file
-cat <<EOF >/var/www/html/.env
+# Generate or use persistent .env file
+ENV_FILE="${PERSISTENT_DIR}/config/.env"
+if [ ! -f "${ENV_FILE}" ]; then
+    echo "Generating new .env file..."
+    # Generate .env file
+    cat <<EOF >"${ENV_FILE}"
 APP_NAME=Vito
 APP_ENV=production
 APP_KEY=${APP_KEY}
@@ -85,6 +97,18 @@ ADMIN_NAME=${NAME}
 ADMIN_EMAIL=${EMAIL}
 ADMIN_PASSWORD=${PASSWORD}
 EOF
+    echo ".env file created and saved to persistent storage"
+else
+    echo "Using existing .env file from persistent storage"
+    # Update dynamic values in existing .env
+    sed -i "s|^APP_URL=.*|APP_URL=${APP_URL}|" "${ENV_FILE}"
+    sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
+    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
+    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
+fi
+
+# Link .env file to Laravel directory
+ln -sf "${ENV_FILE}" /var/www/html/.env
 
 # Configure Apache for PHP and Ingress
 cat <<EOF >/etc/apache2/conf.d/vito.conf
@@ -163,6 +187,12 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
         ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
     fi
     
+    # Link persistent bootstrap cache
+    if [ ! -L /var/www/html/bootstrap/cache ]; then
+        rm -rf /var/www/html/bootstrap/cache
+        ln -sf "${PERSISTENT_DIR}/bootstrap/cache" /var/www/html/bootstrap/cache
+    fi
+    
     # Ensure storage structure exists
     mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
     mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
@@ -183,7 +213,8 @@ chown -R apache:apache /var/www/html
 chown -R apache:apache "${PERSISTENT_DIR}"
 chmod -R 755 /var/www/html
 chmod -R 777 "${PERSISTENT_DIR}/storage" 2>/dev/null || true
-chmod -R 777 /var/www/html/bootstrap/cache 2>/dev/null || true
+chmod -R 777 "${PERSISTENT_DIR}/bootstrap/cache" 2>/dev/null || true
+chmod -R 755 "${PERSISTENT_DIR}/config" 2>/dev/null || true
 chmod 777 "${PERSISTENT_DIR}/database" 2>/dev/null || true
 chmod 666 "${PERSISTENT_DIR}/database/database.sqlite" 2>/dev/null || true
 
