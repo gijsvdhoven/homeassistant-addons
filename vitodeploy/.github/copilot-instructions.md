@@ -163,11 +163,23 @@ Use `init: false` in config.yaml and avoid s6 services. Run processes directly w
 
 ### Bashio API Access Issues
 
-Handle API access errors gracefully with error suppression:
+Handle API access errors gracefully by testing API availability first:
 
 ```bash
-# Suppress bashio API errors and use fallbacks
-NAME=$(bashio::config 'name' 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
+# Test bashio API access before using it
+BASHIO_AVAILABLE=false
+if command -v bashio &> /dev/null; then
+    if bashio::supervisor.ping 2>/dev/null >/dev/null; then
+        BASHIO_AVAILABLE=true
+        # Safe to use bashio functions
+        NAME=$(bashio::config 'name' || echo "vito")
+    fi
+fi
+
+# Always have fallback configuration
+if [ "$BASHIO_AVAILABLE" != true ]; then
+    NAME=${NAME:-vito}  # Use defaults
+fi
 ```
 
 ### Missing System Dependencies

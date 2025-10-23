@@ -16,38 +16,48 @@ mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
 mkdir -p "${PERSISTENT_DIR}/config"
 
-# Check if running with ingress
+# Test bashio API access first
+BASHIO_AVAILABLE=false
 if command -v bashio &> /dev/null; then
-    # Try to get configuration, suppress API errors
-    NAME=$(bashio::config 'name' 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
-    EMAIL=$(bashio::config 'email' 2>&1 | grep -v "ERROR" | tail -n1 || echo "admin@example.com")
-    PASSWORD=$(bashio::config 'password' 2>&1 | grep -v "ERROR" | tail -n1 || echo "password")
-    APP_URL=$(bashio::config 'app_url' 2>&1 | grep -v "ERROR" | tail -n1 || echo "http://homeassistant.local:8123")
+    # Test if bashio can access supervisor API without errors
+    if bashio::supervisor.ping 2>/dev/null >/dev/null; then
+        BASHIO_AVAILABLE=true
+        echo "Bashio API available, loading configuration..."
+    else
+        echo "Bashio API not accessible, using standalone mode with defaults..."
+    fi
+fi
+
+# Load configuration based on API availability
+if [ "$BASHIO_AVAILABLE" = true ]; then
+    # Use bashio to get configuration
+    NAME=$(bashio::config 'name' || echo "vito")
+    EMAIL=$(bashio::config 'email' || echo "admin@example.com")
+    PASSWORD=$(bashio::config 'password' || echo "password")
+    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8123")
     
-    # Check for ingress (suppress errors)
+    # Check for ingress
     INGRESS_ENABLED=false
-    INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>&1 | grep -v "ERROR" | tail -n1)
-    if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
+    if bashio::addon.ingress_entry >/dev/null 2>&1; then
+        INGRESS_ENTRY=$(bashio::addon.ingress_entry)
         INGRESS_ENABLED=true
         echo "Ingress enabled with entry: ${INGRESS_ENTRY}"
-    fi
-    
-    # If ingress is enabled, use the ingress URL
-    if [ "$INGRESS_ENABLED" = true ]; then
-        ADDON_SLUG=$(bashio::addon.slug 2>&1 | grep -v "ERROR" | tail -n1 || echo "vito")
+        
+        # Use ingress URL
+        ADDON_SLUG=$(bashio::addon.slug || echo "vito")
         APP_URL="/api/hassio_ingress/${ADDON_SLUG}"
         echo "Setting APP_URL for ingress: ${APP_URL}"
     fi
     
-    echo "Configuration loaded (or using defaults)"
+    echo "Configuration loaded from Home Assistant"
 else
-    # Fallback for local testing
+    # Fallback configuration (bashio not available or API not accessible)
     NAME=${NAME:-vito}
     EMAIL=${EMAIL:-admin@example.com}
     PASSWORD=${PASSWORD:-password}
     APP_URL=${APP_URL:-http://localhost}
     
-    echo "Running in standalone mode (no bashio detected)"
+    echo "Using default configuration (standalone mode)"
 fi
 
 # Generate or retrieve app key
