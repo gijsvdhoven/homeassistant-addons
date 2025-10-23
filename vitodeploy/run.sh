@@ -180,7 +180,6 @@ DocumentRoot "/var/www/html/public"
 </Directory>
 
 # PHP configuration
-LoadModule php_module /usr/lib/apache2/mod_php83.so
 AddType application/x-httpd-php .php
 DirectoryIndex index.php index.html
 EOF
@@ -278,7 +277,6 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
             \$user->name = '$NAME';
             \$user->email = '$EMAIL';
             \$user->password = Hash::make('$PASSWORD');
-            \$user->email_verified_at = now();
             \$user->save();
             echo 'Admin user created: ' . \$user->email;
         " 2>/dev/null || echo "Could not create admin user"
@@ -286,11 +284,21 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
         echo "Admin user already exists (user count: $USER_COUNT)"
     fi
     
+    # Check if Vito has additional setup commands
+    echo "Running Vito-specific setup..."
+    php artisan vito:install --force 2>/dev/null || echo "No vito:install command found"
+    
     # Cache configuration
     php artisan config:clear
     php artisan cache:clear
     php artisan view:clear
     php artisan route:clear
+    
+    # Generate application key if needed
+    if ! grep -q "APP_KEY=base64:" /var/www/html/.env; then
+        echo "Generating application key..."
+        php artisan key:generate --force
+    fi
 fi
 
 # Set proper permissions
@@ -322,8 +330,20 @@ echo ""
 echo "Apache config test:"
 httpd -t -f /etc/apache2/httpd.conf
 echo ""
-echo "Checking if Laravel can serve a test route:"
-curl -s http://localhost/api/ping 2>/dev/null || echo "No response from Laravel"
+echo "Testing web server after startup (in background):"
+{
+    sleep 5  # Wait for Apache to start
+    echo "Testing homepage..."
+    curl -s -o /tmp/test_response.html -w "HTTP Status: %{http_code}\n" http://localhost/ || echo "Could not connect to localhost"
+    echo "Response size: $(wc -c < /tmp/test_response.html 2>/dev/null || echo '0') bytes"
+    
+    echo "Testing direct PHP file:"
+    curl -s -w "HTTP Status: %{http_code}\n" http://localhost/index.php || echo "Could not connect to index.php"
+    
+    echo "Checking Apache error log:"
+    tail -n 5 /var/log/apache2/error.log 2>/dev/null || echo "No error log found"
+} &
+echo "Background test started..."
 echo "================================"
 
 # Run Apache in foreground
