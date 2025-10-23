@@ -44,7 +44,9 @@ RUN apk add --no-cache \
     unzip \
     curl \
     bash \
-    openssl
+    openssl \
+    nodejs \
+    npm
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -59,6 +61,12 @@ RUN git clone https://github.com/vitodeploy/vito.git . && \
 
 # Install Vito dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-req=php
+
+# Build frontend assets if package.json exists
+RUN if [ -f package.json ]; then \
+        npm install --production && \
+        npm run build; \
+    fi
 
 # Create necessary directories and set permissions
 RUN mkdir -p storage/{app,framework,logs} && \

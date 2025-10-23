@@ -49,7 +49,7 @@ if [ "$BASHIO_WORKING" = true ]; then
     NAME=$(bashio::config 'name' || echo "vito")
     EMAIL=$(bashio::config 'email' || echo "admin@example.com")  
     PASSWORD=$(bashio::config 'password' || echo "password")
-    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8080")
+    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8089")
     
     echo "Configuration loaded from Home Assistant"
 else
@@ -57,14 +57,14 @@ else
     NAME="vito"
     EMAIL="admin@example.com"
     PASSWORD="password"
-    APP_URL="http://homeassistant.local:8080"
+    APP_URL="http://homeassistant.local:8089"
     
     echo "Using safe default configuration with direct port access"
 fi
 
 # Ensure APP_URL is never empty
 if [ -z "$APP_URL" ] || [ "$APP_URL" = "" ]; then
-    APP_URL="http://homeassistant.local:8080"
+    APP_URL="http://homeassistant.local:8089"
     echo "APP_URL was empty, setting to: $APP_URL"
 fi
 
@@ -288,6 +288,19 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
         echo "Generating application key..."
         php artisan key:generate --force
     fi
+    
+    # Check if frontend assets need to be built
+    if [ ! -d "/var/www/html/public/build" ] && [ -f "/var/www/html/package.json" ]; then
+        echo "Frontend assets missing, checking if we can build them..."
+        if command -v npm >/dev/null 2>&1; then
+            echo "Building frontend assets with npm..."
+            cd /var/www/html
+            npm install --production 2>/dev/null || echo "npm install failed"
+            npm run build 2>/dev/null || echo "npm run build failed" 
+        else
+            echo "npm not available, frontend assets will need to be pre-built"
+        fi
+    fi
 fi
 
 # Set proper permissions
@@ -311,6 +324,11 @@ test -f /var/www/html/public/index.php && echo "✓ index.php exists" || echo "�
 test -f /var/www/html/artisan && echo "✓ artisan exists" || echo "✗ artisan missing"  
 test -f /var/www/html/vendor/autoload.php && echo "✓ vendor/autoload.php exists" || echo "✗ vendor/autoload.php missing"
 test -f /var/www/html/.env && echo "✓ .env exists" || echo "✗ .env missing"
+echo ""
+echo "Checking frontend assets:"
+ls -la /var/www/html/public/build/ 2>/dev/null | head -5 || echo "No build directory found"
+ls -la /var/www/html/public/css/ 2>/dev/null | head -3 || echo "No css directory found"  
+ls -la /var/www/html/public/js/ 2>/dev/null | head -3 || echo "No js directory found"
 echo ""
 echo "Laravel routes check:"
 cd /var/www/html
