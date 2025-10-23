@@ -49,33 +49,22 @@ if [ "$BASHIO_WORKING" = true ]; then
     NAME=$(bashio::config 'name' || echo "vito")
     EMAIL=$(bashio::config 'email' || echo "admin@example.com")  
     PASSWORD=$(bashio::config 'password' || echo "password")
-    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8123")
-    
-    # Check for ingress
-    INGRESS_ENTRY=$(bashio::addon.ingress_entry 2>/dev/null)
-    if [ -n "$INGRESS_ENTRY" ] && [ "$INGRESS_ENTRY" != "" ]; then
-        ADDON_SLUG=$(bashio::addon.slug || echo "vito")
-        # Laravel needs a full URL for proper redirects
-        APP_URL="http://homeassistant.local:8123/api/hassio_ingress/${ADDON_SLUG}"
-        echo "Ingress enabled, setting APP_URL to: ${APP_URL}"
-    fi
+    APP_URL=$(bashio::config 'app_url' || echo "http://homeassistant.local:8080")
     
     echo "Configuration loaded from Home Assistant"
 else
     # Use safe defaults when API is not working
-    # Since ingress is enabled in config.yaml, assume ingress URL even without API
     NAME="vito"
     EMAIL="admin@example.com"
     PASSWORD="password"
-    # Laravel needs a full URL for proper redirects
-    APP_URL="http://homeassistant.local:8123/api/hassio_ingress/vito"
+    APP_URL="http://homeassistant.local:8080"
     
-    echo "Using safe default configuration with ingress URL"
+    echo "Using safe default configuration with direct port access"
 fi
 
 # Ensure APP_URL is never empty
 if [ -z "$APP_URL" ] || [ "$APP_URL" = "" ]; then
-    APP_URL="http://localhost"
+    APP_URL="http://homeassistant.local:8080"
     echo "APP_URL was empty, setting to: $APP_URL"
 fi
 
@@ -114,8 +103,6 @@ APP_KEY=${APP_KEY}
 APP_DEBUG=false
 APP_URL=${APP_URL}
 APP_TIMEZONE=UTC
-FORCE_HTTPS=false
-TRUSTED_PROXIES=*
 
 LOG_CHANNEL=stack
 LOG_LEVEL=info
@@ -152,14 +139,7 @@ else
     sed -i "s|^ADMIN_NAME=.*|ADMIN_NAME=${NAME}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${EMAIL}|" "${ENV_FILE}"
     sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${PASSWORD}|" "${ENV_FILE}"
-    
-    # Force update APP_URL for ingress compatibility
-    if [[ "$APP_URL" == */api/hassio_ingress/* ]]; then
-        echo "Updating .env for ingress compatibility..."
-        grep -q "^ASSET_URL=" "${ENV_FILE}" && sed -i "s|^ASSET_URL=.*|ASSET_URL=${APP_URL}|" "${ENV_FILE}" || echo "ASSET_URL=${APP_URL}" >> "${ENV_FILE}"
-        grep -q "^FORCE_HTTPS=" "${ENV_FILE}" && sed -i "s|^FORCE_HTTPS=.*|FORCE_HTTPS=false|" "${ENV_FILE}" || echo "FORCE_HTTPS=false" >> "${ENV_FILE}"
-        grep -q "^TRUSTED_PROXIES=" "${ENV_FILE}" && sed -i "s|^TRUSTED_PROXIES=.*|TRUSTED_PROXIES=*|" "${ENV_FILE}" || echo "TRUSTED_PROXIES=*" >> "${ENV_FILE}"
-    fi
+
     
     # Ensure required variables exist (add if missing)
     grep -q "^APP_TIMEZONE=" "${ENV_FILE}" || echo "APP_TIMEZONE=UTC" >> "${ENV_FILE}"
@@ -296,10 +276,6 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
     else
         echo "Admin user already exists (user count: $USER_COUNT)"
     fi
-    
-    # Check if Vito has additional setup commands
-    echo "Running Vito-specific setup..."
-    php artisan vito:install --force 2>/dev/null || echo "No vito:install command found"
     
     # Cache configuration
     php artisan config:clear
