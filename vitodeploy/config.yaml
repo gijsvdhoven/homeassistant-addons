@@ -1,5 +1,5 @@
 name: "Vito"
-version: "1.8.0"
+version: "1.8.1"
 slug: "vito"
 description: "Vito web interface inside Home Assistant"
 arch:
@@ -12,9 +12,9 @@ init: false
 ingress: false
 panel_icon: mdi:server
 ports:
-  8080/tcp: 8089
+  80/tcp: 8089
 ports_description:
-  8080/tcp: "Vito web interface"
+  80/tcp: "Vito web interface"
 map:
   - config:rw
   - share:rw
