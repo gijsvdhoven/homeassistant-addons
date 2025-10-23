@@ -1,14 +1,34 @@
-# Use Debian-based HA base
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:latest
+# Use Alpine-based HA base
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
 FROM ${BUILD_FROM}
 
 # Install Apache + PHP + dependencies
-RUN apt-get update && \
-    apt-get install -y apache2 libapache2-mod-php php php-mbstring php-xml php-curl php-zip php-sqlite3 php-json php-cli php-common php-bcmath git unzip curl && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    apache2 \
+    apache2-utils \
+    php83 \
+    php83-apache2 \
+    php83-mbstring \
+    php83-xml \
+    php83-curl \
+    php83-zip \
+    php83-sqlite3 \
+    php83-json \
+    php83-cli \
+    php83-common \
+    php83-bcmath \
+    php83-session \
+    php83-tokenizer \
+    php83-dom \
+    php83-fileinfo \
+    php83-pdo \
+    php83-pdo_sqlite \
+    git \
+    unzip \
+    curl
 
-# Enable Apache rewrite module
-RUN a2enmod rewrite
+# Create PHP symlinks for compatibility
+RUN ln -sf /usr/bin/php83 /usr/bin/php
 
 # Prepare web root
 RUN mkdir -p /var/www/html/storage && chmod -R 777 /var/www/html/storage
