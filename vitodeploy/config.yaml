@@ -4,7 +4,9 @@ slug: vito
 description: Vito app running inside Home Assistant
 arch:
   - amd64
-  - arm64
+  - armv7
+  - arm64v8
+  - i386
 startup: services
 boot: auto
 ports:
