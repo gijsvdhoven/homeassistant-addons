@@ -1,13 +1,12 @@
-#!/usr/bin/env sh
-set -euo pipefail
+#!/usr/bin/with-contenv bashio
 
 # Generate .env from add-on options
 cat <<EOF >/var/www/html/.env
-APP_KEY=${APP_KEY:-your-32-character-app-key}
-NAME=${NAME:-vito}
-EMAIL=${EMAIL:-vito@example.com}
-PASSWORD=${PASSWORD:-password}
-APP_URL=${APP_URL:-http://localhost:8000}
+APP_KEY=$(bashio::config 'app_key')
+NAME=$(bashio::config 'name')
+EMAIL=$(bashio::config 'email')
+PASSWORD=$(bashio::config 'password')
+APP_URL=$(bashio::config 'app_url')
 EOF
 
 # Configure Apache for PHP
@@ -24,5 +23,7 @@ AddType application/x-httpd-php .php
 DirectoryIndex index.php index.html
 EOF
 
-echo "Starting Vito web server..."
-exec httpd -D FOREGROUND
+bashio::log.info "Starting Vito web server..."
+
+# Run Apache in foreground
+exec httpd -D FOREGROUND -f /etc/apache2/httpd.conf

@@ -23,6 +23,8 @@ RUN apk add --no-cache \
     php83-fileinfo \
     php83-pdo \
     php83-pdo_sqlite \
+    php83-openssl \
+    php83-ctype \
     git \
     unzip \
     curl
@@ -36,9 +38,7 @@ RUN mkdir -p /var/www/html/storage && chmod -R 777 /var/www/html/storage
 # Download Vito
 RUN git clone https://github.com/vitodeploy/vito.git /var/www/html || true
 
-# Copy entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Copy s6-overlay service files
+COPY rootfs /
 
 EXPOSE 80
-CMD ["/entrypoint.sh"]
