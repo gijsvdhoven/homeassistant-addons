@@ -58,7 +58,6 @@ Critical data persists across container restarts using `/data` directory:
 ```bash
 # Persistent directories mapped to /data
 PERSISTENT_DIR="/data"
-mkdir -p "${PERSISTENT_DIR}/database"
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
 mkdir -p "${PERSISTENT_DIR}/config"
@@ -67,7 +66,7 @@ mkdir -p "${PERSISTENT_DIR}/config"
 ln -sf "${PERSISTENT_DIR}/storage" /var/www/html/storage
 ln -sf "${PERSISTENT_DIR}/bootstrap/cache" /var/www/html/bootstrap/cache
 ln -sf "${PERSISTENT_DIR}/config/.env" /var/www/html/.env
-DB_DATABASE="${PERSISTENT_DIR}/database/database.sqlite"
+DB_DATABASE="${PERSISTENT_DIR}/storage/database.sqlite"
 ```
 
 ### 5. Apache Configuration Pattern

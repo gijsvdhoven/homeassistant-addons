@@ -12,7 +12,6 @@ fi
 # Setup persistent directories
 PERSISTENT_DIR="/data"
 echo "Setting up persistent directories at: ${PERSISTENT_DIR}"
-mkdir -p "${PERSISTENT_DIR}/database"
 mkdir -p "${PERSISTENT_DIR}/storage"
 mkdir -p "${PERSISTENT_DIR}/bootstrap/cache"
 mkdir -p "${PERSISTENT_DIR}/config"
@@ -100,7 +99,7 @@ LOG_CHANNEL=stack
 LOG_LEVEL=info
 
 DB_CONNECTION=sqlite
-DB_DATABASE=${PERSISTENT_DIR}/database/database.sqlite
+DB_DATABASE=${PERSISTENT_DIR}/storage/database.sqlite
 
 BROADCAST_DRIVER=log
 CACHE_DRIVER=file
@@ -218,16 +217,16 @@ if [ -f /var/www/html/artisan ] && [ -f /var/www/html/vendor/autoload.php ]; the
     mkdir -p "${PERSISTENT_DIR}/storage"/{app,framework,logs}
     mkdir -p "${PERSISTENT_DIR}/storage/framework"/{cache,sessions,views,testing}
     
-    # Create database directory and file
-    mkdir -p "${PERSISTENT_DIR}/database"
-    touch "${PERSISTENT_DIR}/database/database.sqlite"
+    # Create database file in storage directory
+    touch "${PERSISTENT_DIR}/storage/database.sqlite"
     
     # Test database connection before migration
     echo "Testing database connection..."
-    DB_PATH="${PERSISTENT_DIR}/database/database.sqlite"
+    DB_PATH="${PERSISTENT_DIR}/storage/database.sqlite"
     if [ -f "$DB_PATH" ]; then
         echo "Database file exists at: $DB_PATH"
         ls -la "$DB_PATH"
+        echo "Laravel should see it at: /var/www/html/storage/database.sqlite"
     else
         echo "ERROR: Database file not found at: $DB_PATH"
     fi
@@ -249,8 +248,7 @@ chmod -R 755 /var/www/html
 chmod -R 777 "${PERSISTENT_DIR}/storage" 2>/dev/null || true
 chmod -R 777 "${PERSISTENT_DIR}/bootstrap/cache" 2>/dev/null || true
 chmod -R 755 "${PERSISTENT_DIR}/config" 2>/dev/null || true
-chmod 777 "${PERSISTENT_DIR}/database" 2>/dev/null || true
-chmod 666 "${PERSISTENT_DIR}/database/database.sqlite" 2>/dev/null || true
+chmod 666 "${PERSISTENT_DIR}/storage/database.sqlite" 2>/dev/null || true
 
 echo "Starting Vito web server on port 80..."
 
