@@ -1,5 +1,0 @@
-my-addon/
-├── config.yaml
-├── Dockerfile
-├── run.sh
-└── README.md

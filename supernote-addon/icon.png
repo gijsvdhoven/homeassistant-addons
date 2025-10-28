@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="45" fill="#2196F3" stroke="#1976D2" stroke-width="2"/>
+  
+  <!-- Cloud icon -->
+  <g transform="translate(50,50)">
+    <!-- Main cloud body -->
+    <ellipse cx="0" cy="-5" rx="25" ry="15" fill="white" opacity="0.9"/>
+    
+    <!-- Cloud bumps -->
+    <circle cx="-15" cy="-8" r="8" fill="white" opacity="0.9"/>
+    <circle cx="-5" cy="-12" r="10" fill="white" opacity="0.9"/>
+    <circle cx="8" cy="-10" r="7" fill="white" opacity="0.9"/>
+    <circle cx="18" cy="-6" r="6" fill="white" opacity="0.9"/>
+    
+    <!-- Note/document icon -->
+    <rect x="-8" y="2" width="16" height="20" rx="2" fill="white" opacity="0.9"/>
+    <rect x="-8" y="2" width="16" height="4" fill="#4CAF50"/>
+    
+    <!-- Lines representing text -->
+    <line x1="-5" y1="8" x2="5" y2="8" stroke="#666" stroke-width="1"/>
+    <line x1="-5" y1="11" x2="3" y2="11" stroke="#666" stroke-width="1"/>
+    <line x1="-5" y1="14" x2="6" y2="14" stroke="#666" stroke-width="1"/>
+    <line x1="-5" y1="17" x2="2" y2="17" stroke="#666" stroke-width="1"/>
+  </g>
+  
+  <!-- Sync arrows -->
+  <g transform="translate(20,75)">
+    <path d="M0,0 L5,3 L0,6 M0,3 L8,3" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+  <g transform="translate(80,25) rotate(180)">
+    <path d="M0,0 L5,3 L0,6 M0,3 L8,3" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+</svg>

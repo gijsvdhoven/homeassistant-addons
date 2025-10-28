@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background gradient -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" style="stop-color:#42A5F5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="cloud" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5f5f5;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="document" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e8f5e8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="url(#bg)" stroke="#1565C0" stroke-width="4"/>
+  
+  <!-- Cloud background -->
+  <g transform="translate(128,110)">
+    <!-- Main cloud body -->
+    <ellipse cx="0" cy="0" rx="70" ry="35" fill="url(#cloud)" opacity="0.95"/>
+    
+    <!-- Cloud bumps for realistic shape -->
+    <circle cx="-45" cy="-10" r="20" fill="url(#cloud)" opacity="0.95"/>
+    <circle cx="-20" cy="-25" r="25" fill="url(#cloud)" opacity="0.95"/>
+    <circle cx="15" cy="-20" r="18" fill="url(#cloud)" opacity="0.95"/>
+    <circle cx="45" cy="-8" r="15" fill="url(#cloud)" opacity="0.95"/>
+    <circle cx="25" cy="8" r="12" fill="url(#cloud)" opacity="0.95"/>
+    <circle cx="-10" cy="15" r="14" fill="url(#cloud)" opacity="0.95"/>
+  </g>
+  
+  <!-- Shadow for depth -->
+  <ellipse cx="128" cy="200" rx="60" ry="8" fill="#000000" opacity="0.1"/>
+  
+  <!-- Document/Note stack -->
+  <g transform="translate(128,140)">
+    <!-- Back document -->
+    <rect x="-22" y="-22" width="44" height="56" rx="4" fill="#f0f0f0" opacity="0.7"/>
+    
+    <!-- Middle document -->
+    <rect x="-20" y="-20" width="40" height="52" rx="4" fill="#f8f8f8" opacity="0.8"/>
+    
+    <!-- Front document -->
+    <rect x="-18" y="-18" width="36" height="48" rx="3" fill="url(#document)"/>
+    
+    <!-- Document header -->
+    <rect x="-18" y="-18" width="36" height="10" rx="3" fill="#4CAF50"/>
+    
+    <!-- Text lines -->
+    <line x1="-12" y1="-4" x2="12" y2="-4" stroke="#666" stroke-width="1.5"/>
+    <line x1="-12" y1="2" x2="8" y2="2" stroke="#666" stroke-width="1.5"/>
+    <line x1="-12" y1="8" x2="14" y2="8" stroke="#666" stroke-width="1.5"/>
+    <line x1="-12" y1="14" x2="6" y2="14" stroke="#666" stroke-width="1.5"/>
+    <line x1="-12" y1="20" x2="10" y2="20" stroke="#666" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Sync/Upload arrows -->
+  <g transform="translate(60,180)">
+    <path d="M0,0 L12,8 L0,16 M0,8 L20,8" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.9"/>
+    <circle cx="25" cy="8" r="3" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <g transform="translate(196,76) rotate(180)">
+    <path d="M0,0 L12,8 L0,16 M0,8 L20,8" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.9"/>
+    <circle cx="25" cy="8" r="3" fill="#ffffff" opacity="0.9"/>
+  </g>
+  
+  <!-- Home Assistant integration icon -->
+  <g transform="translate(200,200)">
+    <circle cx="0" cy="0" r="16" fill="#ffffff" opacity="0.9"/>
+    <path d="M-8,-6 L0,-12 L8,-6 L8,6 L-8,6 Z" fill="#03A9F4"/>
+    <rect x="-2" y="0" width="4" height="6" fill="#03A9F4"/>
+  </g>
+  
+  <!-- Supernote device silhouette -->
+  <g transform="translate(56,56)">
+    <rect x="0" y="0" width="24" height="32" rx="2" fill="#ffffff" opacity="0.7"/>
+    <rect x="2" y="2" width="20" height="28" rx="1" fill="#333333" opacity="0.3"/>
+    <circle cx="12" cy="26" r="1.5" fill="#ffffff" opacity="0.7"/>
+  </g>
+  
+  <!-- Brand text (subtle) -->
+  <text x="128" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#ffffff" opacity="0.8">SUPERNOTE</text>
+</svg>
