@@ -1,6 +1,6 @@
 {
   "name": "Supernote Private Cloud",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "slug": "supernote_private_cloud",
   "description": "Deploy Supernote Private Cloud using the official installation script. Provides self-hosted note synchronization for Supernote devices.",
   "startup": "services",
