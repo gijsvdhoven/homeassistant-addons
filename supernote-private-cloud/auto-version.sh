@@ -24,10 +24,13 @@ show_help() {
     echo "  disable  - Disable automatic version bumping"
     echo "  status   - Show current status"
     echo "  test     - Test the version bump without committing"
+    echo "  commit   - Interactive commit message generator"
     echo "  help     - Show this help message"
     echo ""
     echo "When enabled, version will be automatically bumped when you commit"
     echo "changes to: run.sh, Dockerfile, or config.yaml"
+    echo ""
+    echo "The system also auto-generates conventional commit messages"
 }
 
 enable_auto_version() {
@@ -100,6 +103,14 @@ case "${1:-help}" in
         ;;
     "test")
         test_version_bump
+        ;;
+    "commit")
+        if [[ -x "./prepare-commit.sh" ]]; then
+            ./prepare-commit.sh
+        else
+            echo -e "${RED}prepare-commit.sh not found or not executable${NC}"
+            exit 1
+        fi
         ;;
     "help"|"-h"|"--help"|"")
         show_help

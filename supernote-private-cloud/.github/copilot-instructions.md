@@ -55,12 +55,14 @@ docker run --privileged -v /var/run/docker.sock:/var/run/docker.sock supernote-t
 - **Management**: Use `./auto-version.sh [enable|disable|status|test]` to control automatic versioning
 - **GitHub Actions**: Auto-bumps version on push and creates releases
 - **Files synced**: `config.yaml`, `Dockerfile` labels, `run.sh` log message, and `README.md` badge
+- **Commit Messages**: Auto-generates conventional commit messages with `./prepare-commit.sh` or `./auto-version.sh commit`
 - Installation script URL should remain pointing to official Supernote endpoint
 
 ## Critical Dependencies
 
 - **Docker-in-Docker**: Requires `docker_api: true` and privileged container access
 - **Official Script**: Never modify the upstream installation script - this add-on's value is 100% compatibility
+- **Security Compliance**: Script must be downloaded with `curl -O`, made executable with `chmod +x`, then run locally
 - **Bashio**: Home Assistant's add-on framework for configuration and logging (`bashio::log.*`, `bashio::config`)
 - **Network Access**: Must download from `supernote-private-cloud.supernote.com`
 

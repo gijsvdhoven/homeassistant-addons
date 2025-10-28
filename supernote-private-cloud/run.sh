@@ -230,16 +230,26 @@ download_install_script() {
     
     cd "${DATA_DIR}" || exit 1
     
-    # Download the install script
-    if ! curl -fsSL "${INSTALL_URL}" -o install.sh; then
+    # Remove existing script if present
+    rm -f install.sh
+    
+    # Download the install script using curl -O as required by security guidelines
+    log_message "INFO" "Downloading script from ${INSTALL_URL}"
+    if ! curl -O "${INSTALL_URL}"; then
         log_message "ERROR" "Failed to download installation script from ${INSTALL_URL}"
         exit 1
     fi
     
-    # Make it executable
+    # Verify the script was downloaded
+    if [[ ! -f "install.sh" ]]; then
+        log_message "ERROR" "Installation script not found after download"
+        exit 1
+    fi
+    
+    # Make it executable as required by security guidelines
     chmod +x install.sh
     
-    log_message "INFO" "Installation script downloaded successfully"
+    log_message "INFO" "Installation script downloaded and made executable"
 }
 
 run_install_script() {
@@ -247,15 +257,30 @@ run_install_script() {
     
     cd "${DATA_DIR}" || exit 1
     
+    # Verify script exists and is executable
+    if [[ ! -f "install.sh" ]]; then
+        log_message "ERROR" "Installation script not found"
+        exit 1
+    fi
+    
+    if [[ ! -x "install.sh" ]]; then
+        log_message "ERROR" "Installation script is not executable"
+        exit 1
+    fi
+    
     # Set environment variables that the script expects
     export DEBIAN_FRONTEND=noninteractive
     export TERM=xterm
     
-    # Run the installation script
+    # Run the installation script locally as required by security guidelines
+    log_message "INFO" "Executing local installation script: ./install.sh"
     if ./install.sh 2>&1 | tee -a "${LOG_FILE}"; then
         log_message "INFO" "Supernote Private Cloud installation completed successfully"
     else
         log_message "ERROR" "Installation script failed"
+        # Show the last few lines of output for debugging
+        log_message "ERROR" "Last 10 lines of installation output:"
+        tail -10 "${LOG_FILE}" 2>/dev/null || echo "No log output available"
         exit 1
     fi
 }
