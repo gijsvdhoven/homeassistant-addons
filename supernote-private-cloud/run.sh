@@ -217,7 +217,6 @@ setup_docker() {
     
     log_message "INFO" "Docker setup completed successfully"
 }
-}
 
 # ==============================================================================
 # INSTALL SCRIPT EXECUTION
