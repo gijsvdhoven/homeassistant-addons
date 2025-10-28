@@ -50,7 +50,9 @@ docker run --privileged -v /var/run/docker.sock:/var/run/docker.sock supernote-t
 
 **Version Updates**:
 
-- Update version in `config.yaml`, `Dockerfile` labels, and `run.sh` log message
+- **Automatic**: GitHub Actions auto-bumps version on changes to core files (`run.sh`, `Dockerfile`, `config.yaml`)
+- **Manual**: Use `./bump-version.sh [patch|minor|major] [custom-version]` for immediate version bumps
+- **Files synced**: `config.yaml`, `Dockerfile` labels, `run.sh` log message, and `README.md` badge
 - Installation script URL should remain pointing to official Supernote endpoint
 
 ## Critical Dependencies
@@ -75,6 +77,7 @@ The `run.sh` script implements a monitoring loop that:
 - **Service startup**: Wait 10-15 minutes on first run for container downloads and database initialization
 - **Port conflicts**: Ensure ports 9888, 8080, 19071, 6000, 3306, 6379 are available on host
 - **Docker daemon issues**: Check privileged mode and Docker API access in add-on configuration
+- **Docker startup failures**: The script includes Docker version checks, PID monitoring, and recursive restart logic for robustness
 
 ## Integration Points
 

@@ -1,0 +1,140 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "run.sh"
+      - "Dockerfile"
+      - "config.yaml"
+      - "!bump-version.sh"
+      - "!.github/**"
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Version bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      custom_version:
+        description: "Custom version (optional, overrides bump type)"
+        required: false
+        type: string
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Check if version bump needed
+        id: check
+        run: |
+          # Skip if this commit is already a version bump
+          if git log -1 --pretty=%B | grep -E "^(bump|version|release):" -i; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "This commit is already a version bump, skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Version bump needed"
+          fi
+
+      - name: Get current version
+        if: steps.check.outputs.skip == 'false'
+        id: current
+        run: |
+          VERSION=$(grep '"version":' config.yaml | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Determine version bump type
+        if: steps.check.outputs.skip == 'false'
+        id: bump_type
+        run: |
+          # Use workflow input if available, otherwise determine from commit message
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.custom_version }}" ]; then
+              echo "type=custom" >> $GITHUB_OUTPUT
+              echo "version=${{ github.event.inputs.custom_version }}" >> $GITHUB_OUTPUT
+            else
+              echo "type=${{ github.event.inputs.version_type }}" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Auto-determine from commit message
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -i "breaking\|major" > /dev/null; then
+              echo "type=major" >> $GITHUB_OUTPUT
+            elif echo "$COMMIT_MSG" | grep -i "feat\|feature\|minor" > /dev/null; then
+              echo "type=minor" >> $GITHUB_OUTPUT
+            else
+              echo "type=patch" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Bump version
+        if: steps.check.outputs.skip == 'false'
+        id: bump
+        run: |
+          chmod +x bump-version.sh
+
+          if [ "${{ steps.bump_type.outputs.type }}" = "custom" ]; then
+            ./bump-version.sh patch "${{ steps.bump_type.outputs.version }}"
+            NEW_VERSION="${{ steps.bump_type.outputs.version }}"
+          else
+            ./bump-version.sh "${{ steps.bump_type.outputs.type }}"
+            NEW_VERSION=$(grep '"version":' config.yaml | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          fi
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Commit version bump
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "bump: version ${{ steps.current.outputs.version }} → ${{ steps.bump.outputs.version }}" \
+                     -m "Auto-generated version bump" \
+                     -m "- Updated config.yaml" \
+                     -m "- Updated Dockerfile" \
+                     -m "- Updated run.sh" \
+                     -m "- Updated README.md"
+
+      - name: Create and push tag
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin main
+          git push origin "v${{ steps.bump.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.bump.outputs.version }}
+          release_name: Release v${{ steps.bump.outputs.version }}
+          body: |
+            Auto-generated release for version ${{ steps.bump.outputs.version }}
+
+            ## Changes
+            - Version bump from ${{ steps.current.outputs.version }} to ${{ steps.bump.outputs.version }}
+
+            ## Files Updated
+            - config.yaml
+            - Dockerfile  
+            - run.sh
+            - README.md
+          draft: false
+          prerelease: false

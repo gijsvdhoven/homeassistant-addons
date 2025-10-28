@@ -1,6 +1,6 @@
 {
   "name": "Supernote Private Cloud",
-  "version": "1.2.3",
+  "version": "1.2.2",
   "slug": "supernote_private_cloud",
   "description": "Deploy Supernote Private Cloud using the official installation script. Provides self-hosted note synchronization for Supernote devices.",
   "startup": "services",
@@ -9,7 +9,7 @@
   "ports":
     {
       "9888/tcp": 9888,
-      "8080/tcp": 8080,
+      "8080/tcp": 8280,
       "19071/tcp": 19071,
       "6000/tcp": 6000,
       "3306/tcp": 3306,

@@ -94,13 +94,42 @@ load_config() {
 setup_docker() {
     bashio::log.info "Setting up Docker environment..."
     
+    # Check Docker installation
+    if ! command -v docker >/dev/null 2>&1; then
+        log_message "ERROR" "Docker command not found"
+        exit 1
+    fi
+    
+    if ! command -v dockerd >/dev/null 2>&1; then
+        log_message "ERROR" "Docker daemon not found"
+        exit 1
+    fi
+    
+    log_message "INFO" "Docker version: $(docker --version 2>/dev/null || echo 'unknown')"
+    
+    # Create necessary Docker directories
+    mkdir -p /var/lib/docker
+    mkdir -p /var/run
+    
     # Start Docker daemon if not running
     if ! pgrep dockerd > /dev/null; then
         log_message "INFO" "Starting Docker daemon..."
-        dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2376 &
+        
+        # Start Docker daemon with safer configuration
+        dockerd \
+            --host=unix:///var/run/docker.sock \
+            --data-root=/var/lib/docker \
+            --exec-opt native.cgroupdriver=cgroupfs \
+            --tls=false \
+            --storage-driver=overlay2 \
+            --log-level=warn \
+            >/dev/null 2>&1 &
+        
+        local dockerd_pid=$!
+        log_message "INFO" "Docker daemon started with PID: ${dockerd_pid}"
         
         # Wait for Docker to be ready
-        local max_attempts=30
+        local max_attempts=60
         local attempt=0
         while [ $attempt -lt $max_attempts ]; do
             if docker info &>/dev/null; then
@@ -109,14 +138,36 @@ setup_docker() {
             fi
             sleep 2
             ((attempt++))
+            
+            # Check if dockerd process is still running
+            if ! kill -0 "${dockerd_pid}" 2>/dev/null; then
+                log_message "ERROR" "Docker daemon process died"
+                # Try to get some error information
+                log_message "ERROR" "Docker daemon logs:"
+                journalctl -u docker --no-pager --lines=10 2>/dev/null || echo "No journal logs available"
+                exit 1
+            fi
+            
+            if [ $((attempt % 10)) -eq 0 ]; then
+                log_message "INFO" "Still waiting for Docker daemon... (attempt ${attempt}/${max_attempts})"
+            fi
         done
         
         if [ $attempt -eq $max_attempts ]; then
-            log_message "ERROR" "Docker daemon failed to start"
+            log_message "ERROR" "Docker daemon failed to start within timeout"
             exit 1
         fi
     else
         log_message "INFO" "Docker daemon is already running"
+        # Test if we can connect to it
+        if ! docker info &>/dev/null; then
+            log_message "WARN" "Docker daemon is running but not responding, attempting restart..."
+            pkill dockerd 2>/dev/null || true
+            sleep 5
+            # Recursive call to restart
+            setup_docker
+            return
+        fi
     fi
 }
 
@@ -217,15 +268,25 @@ monitor_services() {
 cleanup() {
     bashio::log.info "Shutting down Supernote Private Cloud..."
     
-    cd "${DATA_DIR}" || exit 1
-    
-    if [ -f "docker-compose.yml" ]; then
-        docker-compose down --timeout 30 2>/dev/null || true
+    # Stop all Docker containers first
+    if command -v docker >/dev/null 2>&1; then
+        cd "${DATA_DIR}" || true
+        
+        if [ -f "docker-compose.yml" ]; then
+            log_message "INFO" "Stopping Docker Compose services..."
+            docker-compose down --timeout 30 2>/dev/null || true
+        fi
+        
+        # Stop any remaining containers
+        docker stop $(docker ps -q) 2>/dev/null || true
     fi
     
     # Stop Docker daemon if we started it
     if pgrep dockerd >/dev/null; then
-        pkill dockerd 2>/dev/null || true
+        log_message "INFO" "Stopping Docker daemon..."
+        pkill -TERM dockerd 2>/dev/null || true
+        sleep 5
+        pkill -KILL dockerd 2>/dev/null || true
     fi
     
     log_message "INFO" "Shutdown completed"
