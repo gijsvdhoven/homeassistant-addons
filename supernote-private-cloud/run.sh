@@ -7,10 +7,14 @@ set -e
 # Runs the official Supernote Private Cloud installation script
 # ==============================================================================
 
-# Constants
-readonly INSTALL_URL="https://supernote-private-cloud.supernote.com/cloud/install.sh"
-readonly DATA_DIR="/share/supernote"
-readonly LOG_FILE="/share/supernote/addon.log"
+# Default Constants
+DEFAULT_INSTALL_URL="https://supernote-private-cloud.supernote.com/cloud/install.sh"
+DEFAULT_DATA_DIR="/share/supernote"
+
+# Runtime variables (set during configuration)
+INSTALL_URL=""
+DATA_DIR=""
+LOG_FILE=""
 
 # ==============================================================================
 # LOGGING
@@ -18,9 +22,14 @@ readonly LOG_FILE="/share/supernote/addon.log"
 
 # Initialize logging
 init_logging() {
+    # DATA_DIR and LOG_FILE will be set in load_config()
+    bashio::log.info "Supernote Private Cloud Add-on starting..."
+}
+
+# Setup log file after configuration is loaded
+setup_logging() {
     mkdir -p "${DATA_DIR}"
     echo "=== Supernote Private Cloud Add-on started $(date) ===" > "${LOG_FILE}"
-    bashio::log.info "Supernote Private Cloud Add-on starting..."
 }
 
 # Enhanced logging function
@@ -61,11 +70,18 @@ load_config() {
     log_level=$(bashio::config 'log_level')
     data_directory=$(bashio::config 'data_directory')
     
+    # Set runtime variables
+    INSTALL_URL="${install_url:-$DEFAULT_INSTALL_URL}"
+    AUTO_UPDATE="${auto_update:-true}"
+    LOG_LEVEL="${log_level:-info}"
+    DATA_DIR="${data_directory:-$DEFAULT_DATA_DIR}"
+    LOG_FILE="${DATA_DIR}/addon.log"
+    
     # Export for use in script
-    export INSTALL_URL="${install_url:-$INSTALL_URL}"
-    export AUTO_UPDATE="${auto_update:-true}"
-    export LOG_LEVEL="${log_level:-info}"
-    export DATA_DIR="${data_directory:-$DATA_DIR}"
+    export INSTALL_URL
+    export AUTO_UPDATE
+    export LOG_LEVEL
+    export DATA_DIR
     
     log_message "INFO" "Configuration loaded - Install URL: ${INSTALL_URL}"
     log_message "INFO" "Data directory: ${DATA_DIR}"
@@ -229,6 +245,7 @@ main() {
     # Initialize
     init_logging
     load_config
+    setup_logging
     setup_docker
     
     # Check if already installed
