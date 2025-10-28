@@ -63,8 +63,11 @@ log_message() {
         *) bashio::log.info "${message}" ;;
     esac
     
-    # Log to file
-    echo "[$timestamp] [$level] ${message}" >> "${LOG_FILE}"
+    # Log to file only if LOG_FILE is set and directory exists
+    if [[ -n "$LOG_FILE" ]] && [[ -n "$DATA_DIR" ]]; then
+        mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+        echo "[$timestamp] [$level] ${message}" >> "${LOG_FILE}" 2>/dev/null || true
+    fi
 }
 
 # ==============================================================================
