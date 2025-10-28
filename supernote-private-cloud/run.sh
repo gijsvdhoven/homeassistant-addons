@@ -2,6 +2,21 @@
 # shellcheck shell=bash
 set -e
 
+# Global error handler
+handle_error() {
+    local exit_code=$?
+    local line_number=$1
+    bashio::log.error "Script failed at line ${line_number} with exit code ${exit_code}"
+    bashio::log.error "Last command: ${BASH_COMMAND}"
+    
+    # Try to cleanup
+    cleanup 2>/dev/null || true
+    exit $exit_code
+}
+
+# Set error trap
+trap 'handle_error ${LINENO}' ERR
+
 # ==============================================================================
 # Home Assistant Add-on: Supernote Private Cloud
 # Runs the official Supernote Private Cloud installation script
@@ -115,21 +130,38 @@ setup_docker() {
     if ! pgrep dockerd > /dev/null; then
         log_message "INFO" "Starting Docker daemon..."
         
-        # Start Docker daemon with safer configuration
+        # Create a temporary log file for Docker daemon
+        local docker_log="/tmp/dockerd.log"
+        
+        # Start Docker daemon with configuration optimized for containers
         dockerd \
             --host=unix:///var/run/docker.sock \
             --data-root=/var/lib/docker \
+            --storage-driver=vfs \
             --exec-opt native.cgroupdriver=cgroupfs \
+            --iptables=false \
+            --bridge=none \
             --tls=false \
-            --storage-driver=overlay2 \
-            --log-level=warn \
-            >/dev/null 2>&1 &
+            --log-level=info \
+            --pidfile=/var/run/dockerd.pid \
+            > "${docker_log}" 2>&1 &
         
         local dockerd_pid=$!
         log_message "INFO" "Docker daemon started with PID: ${dockerd_pid}"
         
+        # Give Docker a moment to initialize
+        sleep 5
+        
+        # Check if Docker daemon is still running after initial startup
+        if ! kill -0 "${dockerd_pid}" 2>/dev/null; then
+            log_message "ERROR" "Docker daemon died during startup"
+            log_message "ERROR" "Docker daemon logs:"
+            cat "${docker_log}" 2>/dev/null || echo "No logs available"
+            exit 1
+        fi
+        
         # Wait for Docker to be ready
-        local max_attempts=60
+        local max_attempts=30
         local attempt=0
         while [ $attempt -lt $max_attempts ]; do
             if docker info &>/dev/null; then
@@ -141,22 +173,28 @@ setup_docker() {
             
             # Check if dockerd process is still running
             if ! kill -0 "${dockerd_pid}" 2>/dev/null; then
-                log_message "ERROR" "Docker daemon process died"
-                # Try to get some error information
+                log_message "ERROR" "Docker daemon process died during wait"
                 log_message "ERROR" "Docker daemon logs:"
-                journalctl -u docker --no-pager --lines=10 2>/dev/null || echo "No journal logs available"
+                cat "${docker_log}" 2>/dev/null || echo "No logs available"
                 exit 1
             fi
             
-            if [ $((attempt % 10)) -eq 0 ]; then
+            if [ $((attempt % 5)) -eq 0 ]; then
                 log_message "INFO" "Still waiting for Docker daemon... (attempt ${attempt}/${max_attempts})"
+                # Show recent Docker logs for debugging
+                log_message "INFO" "Recent Docker logs:"
+                tail -5 "${docker_log}" 2>/dev/null || echo "No recent logs"
             fi
         done
         
         if [ $attempt -eq $max_attempts ]; then
             log_message "ERROR" "Docker daemon failed to start within timeout"
+            log_message "ERROR" "Final Docker daemon logs:"
+            cat "${docker_log}" 2>/dev/null || echo "No logs available"
             exit 1
         fi
+        # Clean up temporary log file
+        rm -f "${docker_log}"
     else
         log_message "INFO" "Docker daemon is already running"
         # Test if we can connect to it
@@ -169,6 +207,16 @@ setup_docker() {
             return
         fi
     fi
+    
+    # Final verification that Docker is working
+    log_message "INFO" "Verifying Docker functionality..."
+    if ! docker version >/dev/null 2>&1; then
+        log_message "ERROR" "Docker is not responding to commands"
+        exit 1
+    fi
+    
+    log_message "INFO" "Docker setup completed successfully"
+}
 }
 
 # ==============================================================================
@@ -301,25 +349,33 @@ trap cleanup SIGTERM SIGINT
 # ==============================================================================
 
 main() {
-    bashio::log.info "Starting Supernote Private Cloud Add-on v1.2.0"
+    bashio::log.info "Starting Supernote Private Cloud Add-on v1.2.2"
     
     # Initialize
+    log_message "INFO" "=== Initialization Phase ==="
     init_logging
     load_config
     setup_logging
+    
+    log_message "INFO" "=== Docker Setup Phase ==="
     setup_docker
     
+    log_message "INFO" "=== Installation Phase ==="
     # Check if already installed
     if [ -f "${DATA_DIR}/docker-compose.yml" ] && [ "${AUTO_UPDATE}" = "false" ]; then
         log_message "INFO" "Supernote Private Cloud is already installed, starting services..."
         cd "${DATA_DIR}" || exit 1
-        docker-compose up -d
+        if ! docker-compose up -d; then
+            log_message "ERROR" "Failed to start existing services"
+            exit 1
+        fi
     else
         # Download and run install script
         download_install_script
         run_install_script
     fi
     
+    log_message "INFO" "=== Service Startup Phase ==="
     # Wait for services to be ready
     wait_for_services
     
