@@ -1,5 +1,5 @@
 # Simplified Supernote Private Cloud Add-on
-ARG BUILD_FROM=ghcr.io/hassio-addons/ubuntu-base/amd64:8.0.0
+ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Set shell
@@ -7,46 +7,27 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Set environment variables
 ENV LANG=C.UTF-8
-ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies required by the Supernote install script
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        apt-transport-https \
+RUN apk add --no-cache \
         ca-certificates \
         curl \
         wget \
         gnupg \
-        lsb-release \
-        software-properties-common \
         tar \
         gzip \
         openssl \
         jq \
         procps \
-        net-tools \
-        iputils-ping \
+        iputils \
         sudo \
-        systemctl \
-        dbus \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        bash \
+        netcat-openbsd \
+        docker \
+        docker-compose
 
-# Install Docker (required by the Supernote script)
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        docker-ce \
-        docker-ce-cli \
-        containerd.io \
-        docker-compose-plugin \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install Docker Compose (standalone)
-RUN DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4) \
-    && curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
-    && chmod +x /usr/local/bin/docker-compose \
-    && ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+# Docker is installed via apk above, no additional installation needed
+# The Home Assistant add-on will have access to Docker via docker_api: true
 
 # Create directories
 RUN mkdir -p /app /data /share/supernote /backup/supernote

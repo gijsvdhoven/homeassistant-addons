@@ -1,39 +1,43 @@
 {
   "name": "Supernote Private Cloud",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "slug": "supernote_private_cloud",
   "description": "Deploy Supernote Private Cloud using the official installation script. Provides self-hosted note synchronization for Supernote devices.",
   "startup": "services",
   "arch": ["amd64", "aarch64"],
   "init": false,
-  "ports": {
-    "9888/tcp": 9888,
-    "8080/tcp": 8080,
-    "19071/tcp": 19071,
-    "6000/tcp": 6000,
-    "3306/tcp": 3306,
-    "6379/tcp": 6379
-  },
-  "ports_description": {
-    "9888/tcp": "Supernote Web Interface",
-    "8080/tcp": "API Service", 
-    "19071/tcp": "Backend Service",
-    "6000/tcp": "Note Library Service",
-    "3306/tcp": "Database (MariaDB)",
-    "6379/tcp": "Cache (Redis)"
-  },
-  "options": {
-    "install_url": "https://supernote-private-cloud.supernote.com/cloud/install.sh",
-    "auto_update": true,
-    "log_level": "info",
-    "data_directory": "/share/supernote"
-  },
-  "schema": {
-    "install_url": "url",
-    "auto_update": "bool",
-    "log_level": "list(debug|info|warning|error)?",
-    "data_directory": "str"
-  },
+  "ports":
+    {
+      "9888/tcp": 9888,
+      "8080/tcp": 8080,
+      "19071/tcp": 19071,
+      "6000/tcp": 6000,
+      "3306/tcp": 3306,
+      "6379/tcp": 6379,
+    },
+  "ports_description":
+    {
+      "9888/tcp": "Supernote Web Interface",
+      "8080/tcp": "API Service",
+      "19071/tcp": "Backend Service",
+      "6000/tcp": "Note Library Service",
+      "3306/tcp": "Database (MariaDB)",
+      "6379/tcp": "Cache (Redis)",
+    },
+  "options":
+    {
+      "install_url": "https://supernote-private-cloud.supernote.com/cloud/install.sh",
+      "auto_update": true,
+      "log_level": "info",
+      "data_directory": "/share/supernote",
+    },
+  "schema":
+    {
+      "install_url": "url",
+      "auto_update": "bool",
+      "log_level": "list(debug|info|warning|error)?",
+      "data_directory": "str",
+    },
   "webui": "http://[HOST]:[PORT:9888]",
   "ingress": true,
   "ingress_port": 9888,
@@ -44,5 +48,5 @@
   "host_network": false,
   "full_access": true,
   "map": ["share:rw", "backup:rw"],
-  "boot": "auto"
+  "boot": "auto",
 }
