@@ -50,8 +50,10 @@ docker run --privileged -v /var/run/docker.sock:/var/run/docker.sock supernote-t
 
 **Version Updates**:
 
-- **Automatic**: GitHub Actions auto-bumps version on changes to core files (`run.sh`, `Dockerfile`, `config.yaml`)
+- **Automatic**: Git pre-commit hook auto-bumps version when core files change (`run.sh`, `Dockerfile`, `config.yaml`)
 - **Manual**: Use `./bump-version.sh [patch|minor|major] [custom-version]` for immediate version bumps
+- **Management**: Use `./auto-version.sh [enable|disable|status|test]` to control automatic versioning
+- **GitHub Actions**: Auto-bumps version on push and creates releases
 - **Files synced**: `config.yaml`, `Dockerfile` labels, `run.sh` log message, and `README.md` badge
 - Installation script URL should remain pointing to official Supernote endpoint
 
