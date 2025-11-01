@@ -125,7 +125,7 @@ init_mysql() {
     fi
     
     # Start MySQL temporarily for initialization
-    mysqld_safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
+    mariadb-safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
     MYSQL_PID=$!
     
     # Wait for MySQL to start
@@ -159,13 +159,10 @@ FLUSH PRIVILEGES;
 EOF
 
         # Run SQL initialization file
-        if [ -f /usr/local/bin/supernotedb.sql ]; then
-            log "Running database initialization script from /usr/local/bin/supernotedb.sql..."
-            /usr/bin/mariadb -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /usr/local/bin/supernotedb.sql
-        elif [ -f /docker-entrypoint-initdb.d/supernotedb.sql ]; then
-            log "Running database initialization script from /docker-entrypoint-initdb.d/supernotedb.sql..."
-            /usr/bin/mariadb -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /docker-entrypoint-initdb.d/supernotedb.sql
-        fi
+       
+        log "Running database initialization script from /usr/local/bin/supernotedb.sql..."
+        /usr/bin/mariadb -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /usr/local/bin/supernotedb.sql
+
         
         log "Database initialized successfully"
     else
