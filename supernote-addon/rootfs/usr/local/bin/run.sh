@@ -129,27 +129,47 @@ init_mysql() {
     MYSQL_PID=$!
     
     # Wait for MySQL to start
+    log "Waiting for MySQL to be ready..."
     for i in {1..30}; do
-        if /usr/bin/mariadb-admin ping -h localhost --silent; then
+        if mysqladmin ping --silent 2>/dev/null; then
+            log "MySQL is ready"
             break
         fi
         sleep 1
     done
 
-    # now run init-database.sh to set up users and import schema
-    /usr/local/bin/init-database.sh
-    
-    # Set root password and create database
-    mysql -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASSWORD}');"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'localhost';"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES;"
-    
-    # Import database schema
-    if [ -f "/docker-entrypoint-initdb.d/supernotedb.sql" ]; then
-        log "Importing database schema..."
-        mysql -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" < /docker-entrypoint-initdb.d/supernotedb.sql
+    # Set root password (only if not already set)
+    if /usr/bin/mariadb -u root -e "SELECT 1" &>/dev/null; then
+        log "Setting root password..."
+        /usr/bin/mariadb -u root <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+FLUSH PRIVILEGES;
+EOF
+    fi
+
+    # Run initialization scripts if database doesn't exist
+    if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2>/dev/null; then
+        log "Creating database and user..."
+        
+        /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+CREATE DATABASE IF NOT EXISTS supernotedb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'supernote'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON supernotedb.* TO 'supernote'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+        # Run SQL initialization file
+        if [ -f /usr/local/bin/supernotedb.sql ]; then
+            log "Running database initialization script from /usr/local/bin/supernotedb.sql..."
+            /usr/bin/mariadb -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /usr/local/bin/supernotedb.sql
+        elif [ -f /docker-entrypoint-initdb.d/supernotedb.sql ]; then
+            log "Running database initialization script from /docker-entrypoint-initdb.d/supernotedb.sql..."
+            /usr/bin/mariadb -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /docker-entrypoint-initdb.d/supernotedb.sql
+        fi
+        
+        log "Database initialized successfully"
+    else
+        log "Database already exists, skipping initialization"
     fi
     
     # Stop temporary MySQL

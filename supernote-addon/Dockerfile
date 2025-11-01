@@ -59,7 +59,6 @@ COPY rootfs/docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
 
 # Make scripts executable
 RUN chmod +x /usr/local/bin/run.sh \
-    && chmod +x /usr/local/bin/init-database.sh \
     && chmod +x /app/scripts/*.sh
 
 # Set proper permissions
