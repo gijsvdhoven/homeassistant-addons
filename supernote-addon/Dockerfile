@@ -1,4 +1,12 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
+
+# Stage 1: Extract notelib service
+FROM supernote/notelib:latest AS notelib
+
+# Stage 2: Extract supernote-service
+FROM supernote/supernote-service:latest AS supernote-service
+
+# Stage 3: Build final image
 FROM $BUILD_FROM
 
 # Build arguments
@@ -53,6 +61,10 @@ COPY rootfs/etc/nginx/ /etc/nginx/
 # Copy application files
 COPY rootfs/app/ /app/
 COPY rootfs/usr/local/bin/ /usr/local/bin/
+
+# Copy Supernote services from Docker images
+COPY --from=notelib /app/ /app/notelib/
+COPY --from=supernote-service /app/ /app/supernote-service/
 
 # Make scripts executable
 RUN chmod +x /usr/local/bin/run.sh \
