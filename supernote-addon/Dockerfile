@@ -54,9 +54,6 @@ COPY rootfs/etc/nginx/ /etc/nginx/
 COPY rootfs/app/ /app/
 COPY rootfs/usr/local/bin/ /usr/local/bin/
 
-# Copy database initialization
-COPY rootfs/docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
-
 # Make scripts executable
 RUN chmod +x /usr/local/bin/run.sh \
     && chmod +x /app/scripts/*.sh
