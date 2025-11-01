@@ -125,7 +125,7 @@ init_mysql() {
     fi
     
     # Start MySQL temporarily for initialization
-    /usr/bin/mariadb-safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
+    /usr/bin/mariadb --user=mysql --datadir=/var/lib/mysql --skip-networking &
     MYSQL_PID=$!
     
     # Wait for MySQL to start
