@@ -33,7 +33,7 @@ fi
 if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2>/dev/null; then
     bashio::log.info "Creating database and user..."
     
-    /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
+    /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOSQL
 
     CREATE DATABASE IF NOT EXISTS supernotedb
     CHARACTER SET utf8mb4 
