@@ -125,7 +125,7 @@ init_mysql() {
     fi
     
     # Start MySQL temporarily for initialization
-    mysqld_4safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
+    mysqld_safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
     MYSQL_PID=$!
     
     # Wait for MySQL to start
