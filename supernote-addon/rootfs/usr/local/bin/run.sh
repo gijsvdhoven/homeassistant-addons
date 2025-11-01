@@ -114,44 +114,8 @@ EOF
 init_mysql() {
     log "Initializing MySQL..."
     
-    # Ensure MySQL directory exists and has correct permissions
-    mkdir -p /var/lib/mysql /run/mysqld
-    chown -R mysql:mysql /var/lib/mysql /run/mysqld
-    
-    # Initialize database if not exists
-    if [ ! -d "/var/lib/mysql/mysql" ]; then
-        log "Initializing MySQL database..."
-        mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
-    fi
-    
-    # Start MySQL temporarily for initialization
-    mysqld_safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
-    MYSQL_PID=$!
-    
-    # Wait for MySQL to start
-    for i in {1..30}; do
-        if mysqladmin ping -h localhost --silent; then
-            break
-        fi
-        sleep 1
-    done
-    
-    # Set root password and create database
-    mysql -e "SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASSWORD}');"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'localhost';"
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES;"
-    
-    # Import database schema
-    if [ -f "/docker-entrypoint-initdb.d/supernotedb.sql" ]; then
-        log "Importing database schema..."
-        mysql -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" < /docker-entrypoint-initdb.d/supernotedb.sql
-    fi
-    
-    # Stop temporary MySQL
-    kill $MYSQL_PID
-    wait $MYSQL_PID 2>/dev/null || true
+    # Run the database initialization script
+    /usr/local/bin/init-database.sh
 }
 
 # Generate supervisor configuration

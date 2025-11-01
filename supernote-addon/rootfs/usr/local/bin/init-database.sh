@@ -21,16 +21,16 @@ for i in {1..30}; do
 done
 
 # Set root password
-mysql -u root <<-EOSQL
+/usr/bin/mariadb -u root <<-EOSQL
     ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
     FLUSH PRIVILEGES;
 EOSQL
 
 # Run initialization scripts if database doesn't exist
-if ! mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2>/dev/null; then
+if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2>/dev/null; then
     bashio::log.info "Creating database and user..."
     
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
+    /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
 
 
 
