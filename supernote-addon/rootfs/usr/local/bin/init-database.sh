@@ -20,11 +20,14 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Set root password
-/usr/bin/mariadb -u root <<-EOSQL
-    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-    FLUSH PRIVILEGES;
+# Set root password (only if not already set)
+if /usr/bin/mariadb -u root -e "SELECT 1" &>/dev/null; then
+    bashio::log.info "Setting root password..."
+    /usr/bin/mariadb -u root <<-EOSQL
+        ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+        FLUSH PRIVILEGES;
 EOSQL
+fi
 
 # Run initialization scripts if database doesn't exist
 if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2>/dev/null; then
@@ -32,12 +35,15 @@ if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2
     
     /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
 
-
-
     CREATE DATABASE IF NOT EXISTS supernotedb
     CHARACTER SET utf8mb4 
     COLLATE utf8mb4_unicode_ci;
 
+    CREATE USER IF NOT EXISTS 'supernote'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';
+    GRANT ALL PRIVILEGES ON supernotedb.* TO 'supernote'@'localhost';
+    FLUSH PRIVILEGES;
+
+    USE supernotedb;
 
     SET FOREIGN_KEY_CHECKS=0;
 
@@ -926,12 +932,6 @@ if ! /usr/bin/mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE supernotedb;" 2
 
 EOSQL
 
-    # Run SQL initialization file if it exists
-    if [ -f /docker-entrypoint-initdb.d/supernotedb.sql ]; then
-        bashio::log.info "Running database initialization script..."
-        mysql -u supernote -p"${MYSQL_PASSWORD}" supernotedb < /docker-entrypoint-initdb.d/supernotedb.sql
-    fi
-    
     bashio::log.info "Database initialized successfully"
 else
     bashio::log.info "Database already exists, skipping initialization"
