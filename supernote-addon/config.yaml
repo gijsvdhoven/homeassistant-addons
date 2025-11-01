@@ -1,5 +1,5 @@
 name: Supernote Private Cloud
-version: "1.2.1"
+version: "1.2.2"
 slug: supernote_private_cloud
 description: "Private cloud solution for Supernote devices with file sync and management"
 url: "https://github.com/supernote-community/supernote-private-cloud-addon"
