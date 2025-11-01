@@ -125,7 +125,7 @@ init_mysql() {
     fi
     
     # Start MySQL temporarily for initialization
-    mysqld_safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
+    mysqld_4safe --user=mysql --datadir=/var/lib/mysql --skip-networking &
     MYSQL_PID=$!
     
     # Wait for MySQL to start
@@ -170,8 +170,11 @@ EOF
     fi
     
     # Stop temporary MySQL
-    kill $MYSQL_PID
+    log "Shutting down temporary MySQL instance..."
+    mysqladmin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
     wait $MYSQL_PID 2>/dev/null || true
+    sleep 2
+    log "MySQL shutdown complete"
 }
 
 # Generate supervisor configuration
