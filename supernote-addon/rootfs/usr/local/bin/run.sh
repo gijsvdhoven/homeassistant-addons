@@ -207,7 +207,7 @@ stderr_logfile=/var/log/supervisor/redis_error.log
 priority=200
 
 [program:notelib]
-command=/app/services/notelib/start.sh
+command=/app/scripts/start-notelib.sh
 autostart=true
 autorestart=true
 user=supernote
@@ -217,7 +217,7 @@ priority=300
 environment=PATH="/usr/local/bin:/usr/bin:/bin"
 
 [program:supernote-service]
-command=/app/services/supernote-service/start.sh
+command=/app/scripts/start-supernote-service.sh
 autostart=true
 autorestart=true
 user=supernote
