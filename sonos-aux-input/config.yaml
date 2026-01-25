@@ -1,0 +1,31 @@
+name: "Sonos AUX Input"
+description: "Stream audio from a USB sound card to Sonos speakers using Darkice and Icecast2. Connect any audio source via USB sound card and play it on your Sonos system."
+version: "1.0.0"
+url: "https://github.com/gijsvdhoven/homeassistant-addons"
+slug: "sonos-aux-input"
+init: false
+startup: services
+boot: auto
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+host_network: true
+audio: true
+options:
+  stream_name: "AUX Input"
+  stream_description: "Auxiliary audio input stream"
+  stream_genre: "Various"
+  bitrate: 320
+  port: 8010
+  icecast_password: "hackme"
+  mount_point: "aux.mp3"
+schema:
+  stream_name: str
+  stream_description: str
+  stream_genre: str
+  bitrate: int(64,320)
+  port: int(1024,65535)
+  icecast_password: str
+  mount_point: str

@@ -1,4 +1,4 @@
 # https://developers.home-assistant.io/docs/add-ons/repository#repository-configuration
-name: Home assistant Addon Repo, home of the Samsung the Frame art changer addon
+name: Gijs van den Hoven's Home Assistant Addons
 url: "https://github.com/gijsvdhoven/homeassistant-addons"
-maintainer: Gijs van den Hoven 
+maintainer: Gijs van den Hoven

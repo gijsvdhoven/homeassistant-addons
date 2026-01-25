@@ -1,0 +1,22 @@
+configuration:
+  stream_name:
+    name: Stream Name
+    description: Name of the audio stream shown in Sonos
+  stream_description:
+    name: Stream Description
+    description: Description of the audio stream
+  stream_genre:
+    name: Stream Genre
+    description: Genre tag for the stream
+  bitrate:
+    name: Bitrate
+    description: Audio bitrate in kbps (64-320). Higher values mean better quality but more bandwidth.
+  port:
+    name: Port
+    description: Port number for the Icecast streaming server. Change if 8010 is already in use.
+  icecast_password:
+    name: Icecast Password
+    description: Password for Icecast server authentication
+  mount_point:
+    name: Mount Point
+    description: URL path for the stream (e.g., aux.mp3 results in http://IP:8000/aux.mp3)

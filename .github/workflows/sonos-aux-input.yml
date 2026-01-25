@@ -1,9 +1,14 @@
-name: "Publish Tolgee"
+name: "Publish Sonos AUX Input Addon"
 
 on:
   workflow_dispatch:
   release:
-    types: [published, workflow_dispatch]
+    types: [published]
+  push:
+    branches:
+      - main
+    paths:
+      - 'sonos-aux-input/**'
 
 jobs:
   publish:
@@ -22,5 +27,5 @@ jobs:
         with:
           args: |
             --all \
-            --target /data/tolgee \
+            --target /data/sonos-aux-input \
             --docker-hub gijsvdhoven

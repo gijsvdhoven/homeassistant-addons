@@ -1,0 +1,27 @@
+# DarkIce configuration file for Sonos AUX Input addon
+
+[general]
+duration        = 0
+bufferSecs      = 5
+reconnect       = yes
+
+[input]
+device          = __AUDIO_DEVICE__
+paSourceName    = __PA_SOURCE_NAME__
+sampleRate      = __SAMPLE_RATE__
+bitsPerSample   = 16
+channel         = 2
+
+[icecast2-0]
+bitrateMode     = cbr
+format          = mp3
+bitrate         = __BITRATE__
+server          = localhost
+port            = __PORT__
+password        = __ICECAST_PASSWORD__
+mountPoint      = __MOUNT_POINT__
+name            = __STREAM_NAME__
+description     = __STREAM_DESCRIPTION__
+genre           = __STREAM_GENRE__
+public          = no
+localDumpFile   =
