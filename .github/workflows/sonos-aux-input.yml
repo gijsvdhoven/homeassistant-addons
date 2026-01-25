@@ -28,7 +28,5 @@ jobs:
           args: |
             --amd64 \
             --aarch64 \
-            --armv7 \
-            --armhf \
             --target /data/sonos-aux-input \
             --docker-hub gijsvdhoven

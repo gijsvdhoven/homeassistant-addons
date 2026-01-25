@@ -23,7 +23,5 @@ jobs:
           args: |
             --amd64 \
             --aarch64 \
-            --armv7 \
-            --armhf \
             --target /data/homeassistant-samsung-frame-art \
             --docker-hub gijsvdhoven

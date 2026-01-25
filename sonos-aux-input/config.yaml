@@ -9,8 +9,6 @@ boot: auto
 arch:
   - aarch64
   - amd64
-  - armv7
-  - armhf
 host_network: true
 audio: true
 options:
