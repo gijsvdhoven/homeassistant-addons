@@ -3,6 +3,7 @@ description: "Stream audio from a USB sound card to Sonos speakers using Darkice
 version: "1.0.0"
 url: "https://github.com/gijsvdhoven/homeassistant-addons"
 slug: "sonos-aux-input"
+image: "gijsvdhoven/{arch}-addon-sonos-aux-input"
 init: false
 startup: services
 boot: auto
